@@ -10,7 +10,7 @@ import anthropic
 
 from src.models.card import CardIdentity
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-haiku-4-5-20251001"
 
 MEDIA_TYPES: dict[str, str] = {
     ".jpg": "image/jpeg",
@@ -152,14 +152,21 @@ class CardIdentifierAgent:
             ValueError: If the response is not valid JSON or required fields
                 (name, number, language, set_name) are missing.
         """
+        text = raw_response.strip()
+        # Some models wrap JSON in markdown code fences — strip them
+        if text.startswith("```"):
+            text = text.split("```", 2)[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip().rstrip("`").strip()
         try:
-            data = json.loads(raw_response.strip())
+            data = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(
                 f"Model returned non-JSON response: {raw_response!r}"
             ) from exc
 
-        missing = [f for f in ("name", "number", "language", "set_name") if not data.get(f)]
+        missing = [f for f in ("name", "number", "language") if not data.get(f)]
         if missing:
             raise ValueError(f"Required fields missing or null in response: {missing}")
 
@@ -167,7 +174,7 @@ class CardIdentifierAgent:
             name=data["name"],
             number=data["number"],
             language=data["language"],
-            set_name=data["set_name"],
+            set_name=data.get("set_name") or "",
             set_code=data.get("set_code"),
             rarity=data.get("rarity"),
         )
