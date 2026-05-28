@@ -97,6 +97,9 @@ class CardReport:
         value_range_high: Upper bound of the estimated value range (optimistic).
         confidence_score: Overall pipeline confidence (0.0–1.0) combining
             identification confidence and grading confidence.
+        front_image_path: Path to the front (recto) image used for this report.
+        back_image_path: Path to the back (verso) image if provided; None otherwise.
+            When absent, centering confidence is reduced by 0.15.
     """
 
     identity: CardIdentity
@@ -106,3 +109,5 @@ class CardReport:
     value_range_low: float
     value_range_high: float
     confidence_score: float
+    front_image_path: str = ""
+    back_image_path: Optional[str] = None

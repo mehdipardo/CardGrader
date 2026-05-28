@@ -68,22 +68,25 @@ class CardIdentifierAgent:
             self._client = anthropic.Anthropic(api_key=self.api_key)
         return self._client
 
-    def identify(self, image_path: Union[str, Path]) -> CardIdentity:
-        """Analyse a card image and return its identity.
+    def identify(self, front_image_path: str) -> CardIdentity:
+        """Analyse a card front image and return its identity.
+
+        Identification is performed exclusively on the recto — the front face
+        carries all the information needed (name, number, language, set).
 
         Args:
-            image_path: Filesystem path to the card image (JPEG, PNG, or WEBP).
+            front_image_path: Filesystem path to the front card image (JPEG, PNG, or WEBP).
 
         Returns:
             A CardIdentity populated with the extracted fields.
 
         Raises:
-            FileNotFoundError: If image_path does not exist.
+            FileNotFoundError: If front_image_path does not exist.
             ValueError: If the file format is unsupported or the model response
                 cannot be parsed.
             anthropic.APIError: On Anthropic API failures.
         """
-        path = Path(image_path)
+        path = Path(front_image_path)
         if not path.exists():
             raise FileNotFoundError(f"Image not found: {path}")
 
@@ -186,7 +189,7 @@ if __name__ == "__main__":
 
     agent = CardIdentifierAgent(api_key=api_key)
     try:
-        identity = agent.identify(sys.argv[1])
+        identity = agent.identify(front_image_path=sys.argv[1])
         print(json.dumps(
             {
                 "name": identity.name,

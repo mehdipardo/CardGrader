@@ -1,8 +1,7 @@
 """Orchestrator for the end-to-end Pokémon TCG card grading pipeline."""
 
 import os
-from pathlib import Path
-from typing import Union
+from typing import Optional
 
 from src.agents.identifier import CardIdentifierAgent
 from src.evaluation.grader import CardGrader
@@ -57,34 +56,46 @@ class CardGraderOrchestrator:
             pokemon_tcg_api_key=os.environ["POKEMON_TCG_API_KEY"],
         )
 
-    def evaluate(self, image_path: Union[str, Path]) -> CardReport:
-        """Run the full grading pipeline on a single card image.
+    def evaluate(
+        self,
+        front_image_path: str,
+        back_image_path: Optional[str] = None,
+    ) -> CardReport:
+        """Run the full grading pipeline on a card.
 
         Executes each pipeline step in sequence and returns the final report.
+        Identification is performed on the front only. Grading uses both sides
+        when the back is provided; otherwise centering confidence is penalised.
 
         Args:
-            image_path: Path to the card photo (JPEG, PNG, or WEBP).
+            front_image_path: Path to the front (recto) card image.
+            back_image_path: Optional path to the back (verso) card image.
 
         Returns:
             A CardReport with identity, condition, pricing, and valuation.
 
         Raises:
-            FileNotFoundError: If image_path does not exist.
+            FileNotFoundError: If front_image_path (or back_image_path when
+                provided) does not exist.
             LookupError: If the card cannot be found in the TCG database.
             ValueError: If any step produces an unusable result.
         """
         raise NotImplementedError
 
-    def evaluate_batch(self, image_paths: list[Union[str, Path]]) -> list[CardReport]:
-        """Run the grading pipeline on multiple card images.
+    def evaluate_batch(
+        self,
+        image_pairs: list[tuple[str, Optional[str]]],
+    ) -> list[CardReport]:
+        """Run the grading pipeline on multiple cards.
 
-        Processes each image independently. Errors on individual cards are
-        caught and logged without aborting the rest of the batch.
+        Each entry is a (front_image_path, back_image_path) tuple; pass None
+        as the second element when no back image is available.
+        Errors on individual cards are caught and logged without aborting the batch.
 
         Args:
-            image_paths: List of paths to card images.
+            image_pairs: List of (front_image_path, back_image_path) tuples.
 
         Returns:
-            List of CardReport objects, one per successfully processed image.
+            List of CardReport objects, one per successfully processed card.
         """
         raise NotImplementedError
