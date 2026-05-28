@@ -1,30 +1,47 @@
-"""Tool for fetching Pokémon TCG card market prices from PokemonPriceTracker."""
+"""Tool for fetching Pokémon TCG card market prices from free sources."""
 
+import re
 import sys
+import time
 from datetime import datetime
+from statistics import median
 from typing import Optional
 
 import httpx
+from bs4 import BeautifulSoup
 
 from src.models.card import CardIdentity, CardPricing
 
 BASE_URL = "https://www.pokemonpricetracker.com/api/v2"
-SOURCE = "pokemonpricetracker"
+EBAY_SEARCH_URL = "https://www.ebay.fr/sch/i.html"
+SOURCE = "pokemonpricetracker+ebay"
 DEFAULT_CURRENCY = "EUR"
+PSA_GRADES = (10, 9, 7, 5, 3)
 
-# Timeout for API requests in seconds
 REQUEST_TIMEOUT = 10.0
+EBAY_REQUEST_TIMEOUT = 15.0
+EBAY_DELAY_SECONDS = 1.0
+
+EBAY_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "fr-FR,fr;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
 
 
 class CardNotFoundError(Exception):
-    """Raised when the PokemonPriceTracker API finds no match for a card."""
+    """Raised when no matching card can be found in the pricing sources."""
 
 
 class PricingTool:
-    """Retrieves current market prices for a card across grading tiers.
+    """Retrieves market prices by combining PokemonPriceTracker and eBay sold listings.
 
-    Calls the PokemonPriceTracker API to obtain raw (Near Mint) and graded
-    price points (PSA/PCA tiers 3, 5, 7, 9, 10) for a given card identity.
+    Raw (Near Mint) price comes from the PokemonPriceTracker free API.
+    Graded PSA prices are estimated from the median of recent eBay completed sales.
     """
 
     def __init__(self, api_key: str) -> None:
@@ -36,152 +53,220 @@ class PricingTool:
         self.api_key = api_key
 
     def fetch_prices(self, identity: CardIdentity) -> CardPricing:
-        """Fetch all available price tiers for a card.
-
-        Queries the API using name, number, and language to uniquely identify
-        the card, then maps the response to a CardPricing object.
+        """Fetch raw and graded price tiers for a card.
 
         Args:
-            identity: A CardIdentity (name, number, language are used for lookup).
+            identity: Card identity (name, number, language used for lookup).
 
         Returns:
-            A CardPricing with raw and graded price points; unavailable tiers
-            are set to None rather than 0.
+            CardPricing with raw_price from PokemonPriceTracker and graded
+            tiers from eBay sold listings (None when insufficient data).
 
         Raises:
-            CardNotFoundError: If no card matches the identity.
+            CardNotFoundError: If PokemonPriceTracker returns no matching card.
             httpx.HTTPStatusError: On non-2xx API responses.
-            httpx.TimeoutException: If the request exceeds REQUEST_TIMEOUT.
+            httpx.TimeoutException: If a request exceeds its timeout.
         """
-        params = self._build_request_params(identity)
-        headers = self._build_headers()
+        raw_price = self._fetch_raw_price(identity)
+        graded: dict[int, Optional[float]] = {}
+        for i, grade in enumerate(PSA_GRADES):
+            if i > 0:
+                time.sleep(EBAY_DELAY_SECONDS)
+            graded[grade] = self._fetch_ebay_grade_median(identity, grade)
+
+        return CardPricing(
+            raw_price=raw_price,
+            grade_10=graded[10],
+            grade_9=graded[9],
+            grade_7=graded[7],
+            grade_5=graded[5],
+            grade_3=graded[3],
+            currency=DEFAULT_CURRENCY,
+            source=SOURCE,
+            last_updated=datetime.utcnow(),
+        )
+
+    def fetch_raw_price(self, identity: CardIdentity) -> float:
+        """Fetch only the ungraded (Near Mint) market price."""
+        return self._fetch_raw_price(identity)
+
+    def _fetch_raw_price(self, identity: CardIdentity) -> float:
+        """Query PokemonPriceTracker and return the matched card's market price."""
+        params = {
+            "search": identity.name,
+            "language": self._ppt_language(identity.language),
+            "limit": 10,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": "application/json",
+        }
 
         with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
             response = client.get(f"{BASE_URL}/cards", params=params, headers=headers)
             response.raise_for_status()
 
         data = response.json()
-        return self._parse_pricing_response(data)
-
-    def fetch_raw_price(self, identity: CardIdentity) -> float:
-        """Fetch only the ungraded (Near Mint) market price for quick lookups.
-
-        Args:
-            identity: A CardIdentity for the lookup.
-
-        Returns:
-            The current raw market price as a float.
-
-        Raises:
-            CardNotFoundError: If no card matches the identity.
-        """
-        pricing = self.fetch_prices(identity)
-        return pricing.raw_price
-
-    def _build_request_params(self, identity: CardIdentity) -> dict:
-        """Build the query parameters for the /cards endpoint.
-
-        Args:
-            identity: The card identity to build params from.
-
-        Returns:
-            Dict with name, number, and language query params.
-        """
-        return {
-            "name": identity.name,
-            "number": identity.number,
-            "language": identity.language,
-        }
-
-    def _build_headers(self) -> dict:
-        """Return HTTP headers including Bearer auth.
-
-        Returns:
-            Dict of request headers.
-        """
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json",
-        }
-
-    def _parse_pricing_response(self, data: dict) -> CardPricing:
-        """Parse the raw API response into a CardPricing object.
-
-        Expected response shape (adjust field names if the real API differs):
-        {
-          "cards": [
-            {
-              "name": "...",
-              "number": "2/102",
-              "language": "FR",
-              "prices": {
-                "ungraded": 15.00,     # or "nm", "near_mint", "raw"
-                "psa_10": 500.00,      # or "psa10", "grade_10"
-                "psa_9":  200.00,
-                "psa_7":  80.00,
-                "psa_5":  40.00,
-                "psa_3":  20.00
-              }
-            }
-          ]
-        }
-
-        Args:
-            data: The JSON body returned by the API.
-
-        Returns:
-            A populated CardPricing.
-
-        Raises:
-            CardNotFoundError: If the cards list is empty.
-            KeyError: If the response shape is unexpected.
-        """
-        cards = data.get("cards") or data.get("data") or []
+        cards = data.get("data") or []
         if not cards:
             raise CardNotFoundError(
-                "No card found in API response. "
-                "Check name, number, and language parameters."
+                f"No results from PokemonPriceTracker for {identity.name!r}."
             )
 
-        card = cards[0]
-        prices = card.get("prices") or card.get("price") or {}
+        card = self._match_card_by_number(cards, identity.number)
+        if card is None:
+            raise CardNotFoundError(
+                f"No card matching number {identity.number!r} "
+                f"among {len(cards)} PokemonPriceTracker result(s)."
+            )
 
-        def _price(key: str) -> Optional[float]:
-            """Return float price for key, or None if absent/zero."""
-            val = prices.get(key)
-            return float(val) if val else None
+        prices = card.get("prices") or {}
+        market = prices.get("market")
+        if market is None:
+            raise CardNotFoundError(
+                f"Card {identity.number!r} found but prices.market is missing."
+            )
+        return float(market)
 
-        # Try common field name variants for each tier
-        raw = (
-            _price("ungraded") or _price("nm") or
-            _price("near_mint") or _price("raw") or 0.0
-        )
+    def _extract_card_number(self, card: dict) -> str:
+        """Build a collector number string from API fields."""
+        if card.get("number"):
+            return str(card["number"]).strip()
+        card_number = card.get("cardNumber")
+        total_set = card.get("totalSetNumber")
+        if card_number is not None and total_set is not None:
+            return f"{card_number}/{total_set}"
+        if card_number is not None:
+            return str(card_number).strip()
+        return ""
 
-        return CardPricing(
-            raw_price=raw,
-            grade_10=_price("psa_10") or _price("psa10") or _price("grade_10"),
-            grade_9 =_price("psa_9")  or _price("psa9")  or _price("grade_9"),
-            grade_7 =_price("psa_7")  or _price("psa7")  or _price("grade_7"),
-            grade_5 =_price("psa_5")  or _price("psa5")  or _price("grade_5"),
-            grade_3 =_price("psa_3")  or _price("psa3")  or _price("grade_3"),
-            currency=card.get("currency", DEFAULT_CURRENCY),
-            source=SOURCE,
-            last_updated=datetime.utcnow(),
-        )
+    def _normalize_collector_number(self, number: str) -> str:
+        """Normalize collector numbers for comparison (e.g. 02/102 → 2/102)."""
+        cleaned = number.strip().lower().replace(" ", "")
+        if "/" not in cleaned:
+            return cleaned
+        left, right = cleaned.split("/", 1)
+        left = left.lstrip("0") or "0"
+        right = right.lstrip("0") or "0"
+        return f"{left}/{right}"
+
+    def _match_card_by_number(
+        self, cards: list[dict], target_number: str
+    ) -> Optional[dict]:
+        """Return the first card whose collector number matches target_number."""
+        target = self._normalize_collector_number(target_number)
+        for card in cards:
+            candidate = self._normalize_collector_number(self._extract_card_number(card))
+            if candidate and candidate == target:
+                return card
+        return None
+
+    def _ppt_language(self, language: str) -> str:
+        """Map a 2-letter language code to the PokemonPriceTracker language param.
+
+        The free API only accepts ``english`` and ``japanese``; French and other
+        languages fall back to ``english`` (search still uses the printed name).
+        """
+        code = language.strip().upper()
+        if code == "JP":
+            return "japanese"
+        return "english"
+
+    def _fetch_ebay_grade_median(
+        self, identity: CardIdentity, grade: int
+    ) -> Optional[float]:
+        """Scrape eBay sold listings and return the median of recent sale prices."""
+        query = f"{identity.name} {identity.number} PSA {grade} pokemon"
+        params = {
+            "_nkw": query,
+            "LH_Sold": "1",
+            "LH_Complete": "1",
+            "_sacat": "0",
+        }
+
+        try:
+            with httpx.Client(
+                timeout=EBAY_REQUEST_TIMEOUT,
+                headers=EBAY_HEADERS,
+                follow_redirects=True,
+            ) as client:
+                response = client.get(EBAY_SEARCH_URL, params=params)
+                response.raise_for_status()
+        except httpx.HTTPError:
+            return None
+
+        prices = self._parse_ebay_prices(response.text)
+        return self._median_of_recent_sales(prices)
+
+    def _parse_ebay_prices(self, html: str) -> list[float]:
+        """Extract numeric sale prices from eBay search result HTML."""
+        soup = BeautifulSoup(html, "html.parser")
+        parsed: list[float] = []
+
+        for element in soup.select(".s-item__price"):
+            text = element.get_text(strip=True)
+            lower = text.lower()
+            if not text or ("enchère" in lower and "à" in lower):
+                continue
+            price = self._clean_price(text)
+            if price is not None and price > 0:
+                parsed.append(price)
+
+        return parsed
+
+    def _clean_price(self, text: str) -> Optional[float]:
+        """Parse a price string like '45,50 EUR' or '$12.99' into a float."""
+        text = text.strip()
+        for token in ("EUR", "USD", "GBP", "€", "$", "£"):
+            text = text.replace(token, "")
+        text = text.strip()
+
+        match = re.search(r"[\d\s.,]+", text)
+        if not match:
+            return None
+
+        numeric = match.group(0).strip().replace(" ", "")
+        if not numeric:
+            return None
+
+        if "," in numeric and "." in numeric:
+            if numeric.rfind(",") > numeric.rfind("."):
+                numeric = numeric.replace(".", "").replace(",", ".")
+            else:
+                numeric = numeric.replace(",", "")
+        elif "," in numeric:
+            parts = numeric.split(",")
+            if len(parts) == 2 and len(parts[1]) <= 2:
+                numeric = numeric.replace(",", ".")
+            else:
+                numeric = numeric.replace(",", "")
+
+        try:
+            return float(numeric)
+        except ValueError:
+            return None
+
+    def _median_of_recent_sales(self, prices: list[float]) -> Optional[float]:
+        """Return the median of up to 5 recent sales, or None if fewer than 3."""
+        recent = prices[:5]
+        if len(recent) < 3:
+            return None
+        return float(median(recent))
 
 
 if __name__ == "__main__":
     import argparse
+    import json
     import os
 
     from dotenv import load_dotenv
 
     parser = argparse.ArgumentParser(
         prog="python -m src.tools.pricing",
-        description="Fetch market prices for a Pokémon TCG card.",
+        description="Fetch market prices for a Pokémon TCG card (free sources).",
     )
-    parser.add_argument("--name",     required=True, help="Card name (e.g. 'Tortank')")
-    parser.add_argument("--number",   required=True, help="Collector number (e.g. '2/102')")
+    parser.add_argument("--name", required=True, help="Card name (e.g. 'Tortank')")
+    parser.add_argument("--number", required=True, help="Collector number (e.g. '2/102')")
     parser.add_argument("--language", required=True, help="Language code (e.g. 'FR', 'EN')")
     args = parser.parse_args()
 
@@ -200,28 +285,29 @@ if __name__ == "__main__":
     )
 
     try:
+        print(f"Fetching prices for {identity.name} ({identity.number}, {identity.language})...")
         pricing = tool.fetch_prices(identity)
-        import json
         print(json.dumps(
             {
-                "raw_price":   pricing.raw_price,
-                "grade_10":    pricing.grade_10,
-                "grade_9":     pricing.grade_9,
-                "grade_7":     pricing.grade_7,
-                "grade_5":     pricing.grade_5,
-                "grade_3":     pricing.grade_3,
-                "currency":    pricing.currency,
-                "source":      pricing.source,
+                "raw_price": pricing.raw_price,
+                "grade_10": pricing.grade_10,
+                "grade_9": pricing.grade_9,
+                "grade_7": pricing.grade_7,
+                "grade_5": pricing.grade_5,
+                "grade_3": pricing.grade_3,
+                "currency": pricing.currency,
+                "source": pricing.source,
                 "last_updated": pricing.last_updated.isoformat(),
             },
             indent=2,
+            ensure_ascii=False,
         ))
     except CardNotFoundError as e:
         print(f"Card not found: {e}")
         sys.exit(1)
     except httpx.HTTPStatusError as e:
-        print(f"API error {e.response.status_code}: {e.response.text}")
+        print(f"HTTP error {e.response.status_code}: {e.response.text[:500]}")
         sys.exit(1)
     except httpx.TimeoutException:
-        print("Error: API request timed out")
+        print("Error: request timed out")
         sys.exit(1)
