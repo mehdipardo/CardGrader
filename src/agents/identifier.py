@@ -174,12 +174,20 @@ class CardIdentifierAgent:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python -m src.agents.identifier <image_path>")
-        sys.exit(1)
+    import argparse
+    import os
 
     from dotenv import load_dotenv
-    import os
+
+    parser = argparse.ArgumentParser(
+        prog="python -m src.agents.identifier",
+        description="Identify a Pokémon TCG card from a photo using Claude vision.",
+    )
+    parser.add_argument("--front", required=True, metavar="PATH",
+                        help="Path to the front (recto) card image — required.")
+    parser.add_argument("--back", default=None, metavar="PATH",
+                        help="Path to the back (verso) card image — optional.")
+    args = parser.parse_args()
 
     load_dotenv()
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -189,7 +197,7 @@ if __name__ == "__main__":
 
     agent = CardIdentifierAgent(api_key=api_key)
     try:
-        identity = agent.identify(front_image_path=sys.argv[1])
+        identity = agent.identify(front_image_path=args.front)
         print(json.dumps(
             {
                 "name": identity.name,
