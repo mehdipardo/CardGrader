@@ -10,7 +10,7 @@ import anthropic
 
 from src.models.card import CardIdentity
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 MEDIA_TYPES: dict[str, str] = {
     ".jpg": "image/jpeg",
