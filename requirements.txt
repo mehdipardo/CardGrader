@@ -2,3 +2,4 @@ anthropic
 httpx
 python-dotenv
 Pillow
+streamlit
