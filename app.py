@@ -380,6 +380,88 @@ if analyse and front_image is not None:
             )
             st.dataframe(df, hide_index=True, use_container_width=False)
 
+    # ── Section 4 — Sell ───────────────────────────────────────────────────
+    if report:
+        st.divider()
+        st.header("🛒 Vendre cette carte")
+
+        PLATFORM_LABELS: dict[str, str] = {
+            "vinted":     "Vinted",
+            "ebay":       "eBay",
+            "leboncoin":  "LeBonCoin",
+            "facebook":   "Facebook Marketplace",
+            "cardmarket": "CardMarket",
+        }
+
+        sell_col1, sell_col2 = st.columns([2, 1])
+        with sell_col1:
+            selected_platform = st.selectbox(
+                "Plateforme de vente",
+                options=list(PLATFORM_LABELS.keys()),
+                format_func=lambda k: PLATFORM_LABELS[k],
+            )
+        with sell_col2:
+            selected_lang = st.selectbox("Langue de l'annonce", ["fr", "en"])
+
+        listing_cache_key = f"listing_{selected_platform}_{selected_lang}"
+        cached_listing = st.session_state.get(listing_cache_key)
+
+        generate_btn = st.button(
+            "✍️ Générer l'annonce",
+            type="primary",
+            disabled=cached_listing is not None,
+        )
+
+        if generate_btn:
+            from src.agents.listing_generator import ListingGenerator
+            with st.spinner("Génération de l'annonce en cours…"):
+                try:
+                    generator = ListingGenerator(api_key=api_key)
+                    listing = generator.generate(report, selected_platform, selected_lang)
+                    st.session_state[listing_cache_key] = listing
+                    cached_listing = listing
+                except Exception as e:
+                    st.error(f"Erreur lors de la génération : {e}")
+
+        if cached_listing:
+            st.subheader(cached_listing["title"])
+
+            st.text_area(
+                "Description (modifiable)",
+                value=cached_listing["description"],
+                height=200,
+                key=f"desc_{listing_cache_key}",
+            )
+
+            price_col, tag_col = st.columns([1, 2])
+            with price_col:
+                st.metric(
+                    label="Prix suggéré",
+                    value=f"{cached_listing['suggested_price']:.2f} €",
+                )
+            with tag_col:
+                st.write("**Tags :**")
+                st.write("  ".join(f"`{t}`" for t in cached_listing.get("tags", [])))
+
+            st.write("")
+            copy_col, link_col = st.columns(2)
+            with copy_col:
+                st.code(
+                    f"{cached_listing['title']}\n\n{cached_listing['description']}",
+                    language=None,
+                )
+                st.caption("Sélectionnez le texte ci-dessus pour le copier.")
+            with link_col:
+                st.link_button(
+                    f"📤 Créer l'annonce sur {PLATFORM_LABELS[selected_platform]}",
+                    url=cached_listing["redirect_url"],
+                    use_container_width=True,
+                )
+
+            if st.button("🔄 Régénérer", key=f"regen_{listing_cache_key}"):
+                del st.session_state[listing_cache_key]
+                st.rerun()
+
     # Cleanup temp files
     for path in (front_path, back_path):
         if path:
