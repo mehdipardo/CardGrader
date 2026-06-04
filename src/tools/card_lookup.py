@@ -1,68 +1,160 @@
-"""Tool for resolving a card's exact API record from identity fields."""
+"""TCGDex card lookup tool — resolves card identity and baseline prices."""
+
+import sys
+from typing import Optional
+
+import httpx
 
 from src.models.card import CardIdentity
 
+BASE_URL = "https://api.tcgdex.net/v2"
+REQUEST_TIMEOUT = 10.0
+
+LANGUAGE_TO_TCGDEX: dict[str, str] = {
+    "FR": "fr",
+    "EN": "en",
+    "JP": "ja",
+    "DE": "de",
+    "IT": "it",
+    "ES": "es",
+    "KO": "ko",
+    "PT": "pt",
+}
+
+
+class CardNotFoundError(Exception):
+    """Raised when TCGDex finds no card matching the requested identity."""
+
+
+def _normalize_number(number: str) -> str:
+    """Strip leading zeros from each part of a collector number.
+
+    Examples: "002/102" → "2/102", "026/106" → "26/106".
+    """
+    parts = number.split("/")
+    return "/".join(str(int(p)) if p.isdigit() else p for p in parts)
+
 
 class CardLookupTool:
-    """Queries the Pokémon TCG API to resolve a canonical card record.
+    """Resolves a CardIdentity to a full TCGDex card record.
 
-    Takes the fields extracted by CardIdentifierAgent (name, number, language,
-    set) and returns a normalised card record including the official set code
-    and rarity, which are needed for accurate pricing lookups.
+    TCGDex is a free, keyless, multilingual API. The resolved card dict
+    includes set metadata, rarity, and a 'pricing' block with CardMarket
+    and TCGPlayer data — used downstream by PricingTool.
+
+    Lookup strategy:
+      1. Search by name in the card's language → list of card stubs
+      2. Match on normalised collector number
+      3. Fetch the full card by ID to get pricing and all metadata
     """
 
-    BASE_URL = "https://api.pokemontcg.io/v2"
+    def __init__(self) -> None:
+        """No API key required — TCGDex is publicly accessible."""
 
-    def __init__(self, api_key: str) -> None:
-        """Initialise the tool with a Pokémon TCG API key.
-
-        Args:
-            api_key: API key for pokemontcg.io authentication.
-        """
-        self.api_key = api_key
-
-    def lookup(self, identity: CardIdentity) -> CardIdentity:
-        """Enrich a CardIdentity with official set code and rarity.
-
-        Queries the TCG API using the card number and set name, then
-        returns a new CardIdentity with set_code and rarity filled in.
+    def resolve(self, identity: CardIdentity) -> dict:
+        """Resolve a CardIdentity to a full TCGDex card record.
 
         Args:
-            identity: Partially filled CardIdentity from the vision agent.
+            identity: CardIdentity from the vision agent.
 
         Returns:
-            An enriched CardIdentity with set_code and rarity populated.
+            Full TCGDex card dict including 'pricing', 'set', 'rarity', etc.
 
         Raises:
-            LookupError: If no matching card is found in the API.
-            httpx.HTTPStatusError: On API request failures.
+            CardNotFoundError: If no card matches the name + number.
+            httpx.HTTPStatusError: On non-2xx API responses.
+            httpx.TimeoutException: If a request exceeds REQUEST_TIMEOUT.
         """
-        raise NotImplementedError
+        lang = LANGUAGE_TO_TCGDEX.get(identity.language, "en")
 
-    def search_by_number_and_set(self, number: str, set_name: str, language: str) -> dict:
-        """Send a search query to the TCG API and return the raw result.
+        with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
+            # Step 1 — search by name
+            resp = client.get(
+                f"{BASE_URL}/{lang}/cards",
+                params={"name": identity.name},
+            )
+            resp.raise_for_status()
+            candidates = resp.json()
 
-        Builds a query string (e.g. `number:4 set.name:"Base Set"`) and
-        fetches matching cards. Handles pagination if necessary.
+        if not isinstance(candidates, list) or not candidates:
+            raise CardNotFoundError(
+                f"No cards found for name '{identity.name}' (lang={lang})"
+            )
+
+        # Step 2 — match on normalised number
+        target = _normalize_number(identity.number)
+        matched_id: Optional[str] = None
+        for card in candidates:
+            local_id = card.get("localId") or card.get("id", "")
+            # TCGDex localId is the number within the set (e.g. "2" or "002")
+            # The global id is like "base1-2"
+            card_number = card.get("number") or local_id
+            if _normalize_number(str(card_number)) == target:
+                matched_id = card.get("id")
+                break
+
+        if matched_id is None:
+            found = [
+                _normalize_number(str(c.get("number") or c.get("localId", "")))
+                for c in candidates[:10]
+            ]
+            raise CardNotFoundError(
+                f"No card with number '{identity.number}' among TCGDex results "
+                f"for '{identity.name}'. Numbers found: {found}"
+            )
+
+        # Step 3 — fetch full card by ID
+        return self.get_card_by_id(matched_id, language=lang)
+
+    def get_card_by_id(self, card_id: str, language: str = "en") -> dict:
+        """Fetch a full TCGDex card record by its global ID.
 
         Args:
-            number: Collector number (e.g. "4/102" or just "4").
-            set_name: Full or partial set name.
-            language: Card language — used to select the correct API endpoint
-                for non-English cards.
+            card_id: TCGDex global card ID (e.g. "base1-2").
+            language: TCGDex language prefix (e.g. "fr", "en", "ja").
 
         Returns:
-            The first matching card data dict from the API response.
+            Full card dict with pricing, set, rarity, and image fields.
 
         Raises:
-            LookupError: If no results are returned.
+            httpx.HTTPStatusError: On non-2xx responses.
         """
-        raise NotImplementedError
+        with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
+            resp = client.get(f"{BASE_URL}/{language}/cards/{card_id}")
+            resp.raise_for_status()
+        return resp.json()
 
-    def _build_headers(self) -> dict:
-        """Return HTTP headers including the API key.
 
-        Returns:
-            Dict of request headers.
-        """
-        raise NotImplementedError
+if __name__ == "__main__":
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(
+        prog="python -m src.tools.card_lookup",
+        description="Resolve a Pokémon TCG card via TCGDex (no API key required).",
+    )
+    parser.add_argument("--name",     required=True, help="Card name (e.g. 'Tortank')")
+    parser.add_argument("--number",   required=True, help="Collector number (e.g. '2/102')")
+    parser.add_argument("--language", required=True, help="Language code (e.g. 'FR', 'EN')")
+    args = parser.parse_args()
+
+    tool = CardLookupTool()
+    identity = CardIdentity(
+        name=args.name,
+        number=args.number,
+        language=args.language,
+        set_name="",
+    )
+
+    try:
+        card = tool.resolve(identity)
+        print(json.dumps(card, indent=2, ensure_ascii=False))
+    except CardNotFoundError as e:
+        print(f"Card not found: {e}")
+        sys.exit(1)
+    except httpx.HTTPStatusError as e:
+        print(f"API error {e.response.status_code}: {e.response.text}")
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: TCGDex request timed out")
+        sys.exit(1)

@@ -35,8 +35,7 @@ class CardCondition:
     grading tiers (PSA/BGS-style).
 
     Attributes:
-        centering: Front/back centering score (1–10). Measures how well the
-            image is centered within the card borders.
+        centering: Front/back centering score (1–10).
         corners: Corner sharpness score (1–10). Detects nicks, bends, or wear.
         edges: Edge integrity score (1–10). Detects chipping or roughness.
         surface: Surface quality score (1–10). Detects scratches, print lines,
@@ -57,19 +56,22 @@ class CardCondition:
 class CardPricing:
     """Represents market pricing data retrieved for a specific card.
 
-    Prices are keyed by professional grade tier (PSA-style numeric grades).
-    raw_price is the ungraded market value.
-
     Attributes:
-        raw_price: Current market price for an ungraded copy.
-        grade_10: Market price for a PSA 10 / BGS 10 graded copy.
+        raw_price: Current market price for an ungraded (Near Mint) copy.
+        grade_10: Market price for a PSA 10 graded copy.
         grade_9: Market price for a PSA 9 graded copy.
         grade_7: Market price for a PSA 7 graded copy.
         grade_5: Market price for a PSA 5 graded copy.
         grade_3: Market price for a PSA 3 graded copy.
         currency: ISO 4217 currency code (e.g. "USD", "EUR").
-        source: Name of the pricing data provider (e.g. "TCGPlayer", "CardMarket").
+        source: Name of the pricing data provider(s).
         last_updated: Timestamp of when the pricing data was fetched.
+        source_detail: Detailed source chain, e.g. "tcgdex+cardmarket-api"
+            or "tcgdex-only".
+        language_specific: True if raw_price is specific to the card's language
+            market (e.g. FR price from CardMarket FR), False for global price.
+        cardmarket_trend: CardMarket trend price (EUR), always from TCGDex layer.
+        tcgplayer_market: TCGPlayer market price (USD), from TCGDex layer.
     """
 
     raw_price: float
@@ -81,6 +83,10 @@ class CardPricing:
     currency: str
     source: str
     last_updated: datetime = field(default_factory=datetime.utcnow)
+    source_detail: str = "tcgdex-only"
+    language_specific: bool = False
+    cardmarket_trend: Optional[float] = None
+    tcgplayer_market: Optional[float] = None
 
 
 @dataclass
@@ -99,7 +105,6 @@ class CardReport:
             identification confidence and grading confidence.
         front_image_path: Path to the front (recto) image used for this report.
         back_image_path: Path to the back (verso) image if provided; None otherwise.
-            When absent, centering confidence is reduced by 0.15.
     """
 
     identity: CardIdentity
