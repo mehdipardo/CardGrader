@@ -168,7 +168,7 @@ class CardLookupTool:
                     _log(f"  skip {card_id} — fetch failed: {exc}")
                     continue
 
-                card_count = full_card.get("cardCount") or {}
+                card_count = (full_card.get("set") or {}).get("cardCount") or {}
                 official   = card_count.get("official")
                 total      = card_count.get("total")
                 _log(f"  {card_id}: cardCount={card_count}")
