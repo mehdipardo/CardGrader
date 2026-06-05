@@ -19,30 +19,70 @@ MEDIA_TYPES: dict[str, str] = {
     ".webp": "image/webp",
 }
 
-SYSTEM_PROMPT = """You are an expert Pokémon TCG card identifier.
-Your task is to analyse a card image and extract structured information from it.
-You MUST respond with valid JSON only — no markdown, no explanation, no extra text.
-If a field is not readable or not present, use null. Never invent or guess values."""
+SYSTEM_PROMPT = """Tu es un expert en identification de cartes Pokémon TCG.
+Analyse l'image de cette carte et extrais les informations suivantes.
+Réponds UNIQUEMENT en JSON valide, aucun texte autour.
 
-USER_PROMPT = """Identify this Pokémon TCG card and return a JSON object with exactly these fields:
+RÈGLES CRITIQUES POUR LE NUMÉRO DE CARTE :
+Le numéro se trouve en BAS À DROITE de la carte, souvent en petit.
+C'est l'information LA PLUS IMPORTANTE à lire correctement.
 
+Formats possibles (du plus courant au plus rare) :
+- Standard : X/Y (ex: "2/102", "26/106", "049/198")
+  X = numéro de la carte, Y = total du set
+- Secret Rare : X/Y où X > Y (ex: "101/100", "163/151")
+  La carte dépasse le numéro officiel du set
+- Numéro seul : juste un nombre, parfois avec zéros (ex: "009", "011")
+  Fréquent sur les anciennes cartes japonaises et certaines promos
+- Avec préfixe "No." : (ex: "No.151")
+  Courant sur les vieilles cartes japonaises
+- Sous-set : préfixe + numéro/total (ex: "GG17/GG70", "TG01/TG30")
+- Promo avec préfixe d'ère : (ex: "SWSH123", "SM103", "XY75")
+- Promo japonaise : numéro/ère-P (ex: "005/SV-P")
+
+INSTRUCTIONS DE LECTURE :
+- Lis CHAQUE CHIFFRE un par un, ne devine jamais
+- Conserve les zéros devant s'ils sont imprimés ("009" pas "9")
+- Conserve le format exact tel qu'imprimé
+- Le "/" sépare le numéro de la carte du total du set
+- Attention à ne pas confondre avec les HP ou les dégâts d'attaque
+  qui sont aussi des chiffres sur la carte
+- Si le numéro est partiellement caché, flou, ou illisible,
+  indique "number_uncertain": true et baisse la confidence
+
+RÈGLES POUR LA LANGUE :
+Détecte la langue par les MOTS imprimés sur la carte, pas par le nom :
+- "Faiblesse" / "Résistance" / "Retraite" → FR
+- "Weakness" / "Resistance" / "Retreat" → EN
+- "よわい" / "ていこう" / "にげる" → JP
+- "Schwäche" / "Resistenz" / "Rückzug" → DE
+- "Debolezza" / "Resistenza" / "Ritirata" → IT
+- "Debilidad" / "Resistencia" / "Retirada" → ES
+- "약점" / "저항력" / "후퇴" → KO
+
+RÈGLES POUR LA RARETÉ :
+Le symbole de rareté est en bas à droite, près du numéro :
+- Cercle noir (●) → Common
+- Losange noir (◆) → Uncommon
+- Étoile noire (★) → Rare
+- Étoile noire holographique → Rare Holo
+- Double étoile (★★) → Double Rare
+- Étoile blanche ou dorée → Ultra Rare / Secret Rare
+- Étoile noire avec "PROMO" → Promo
+
+FORMAT DE RÉPONSE JSON :
 {
-  "name": "<card name exactly as printed>",
-  "number": "<collector number EXACTLY as printed at the bottom-right, e.g. '26/106' or '006/165'>",
-  "language": "<2-letter code: EN / FR / DE / ES / IT / PT / JP / KO / ZHS / ZHT>",
-  "set_name": "<official set/expansion name as printed on the card>",
-  "set_code": "<short API set code if visible, otherwise null>",
-  "rarity": "<rarity text or symbol if present, otherwise null>",
-  "confidence": <float 0.0-1.0 reflecting your certainty>
-}
+  "name": "nom du Pokémon tel qu'imprimé",
+  "number": "numéro exact tel qu'imprimé (ex: 2/102 ou 009)",
+  "language": "FR|EN|JP|DE|IT|ES|KO|PT",
+  "set_name": "nom du set si visible, sinon null",
+  "set_code": "code du set si connu, sinon null",
+  "rarity": "type de rareté détecté",
+  "number_uncertain": false,
+  "confidence": 0.95
+}"""
 
-Rules:
-- Read the collector number EXACTLY as printed (bottom-right corner). Do not reformat it.
-- Detect language from keywords printed on the card, NOT from the Pokémon name (it can be identical across languages).
-  Examples: "Faiblesse"/"Résistance" → FR | "Weakness"/"Resistance" → EN | "Schwäche"/"Resistenz" → DE |
-  "Debilidad"/"Resistencia" → ES | "かわいさ"/"にげる" → JP | "약점"/"저항력" → KO
-- If a field is unreadable, use null — never invent a value.
-- Return ONLY the JSON object, nothing else."""
+USER_PROMPT = "Analyse cette carte Pokémon TCG."
 
 
 class CardIdentifierAgent:
@@ -95,7 +135,7 @@ class CardIdentifierAgent:
 
         message = client.messages.create(
             model=MODEL,
-            max_tokens=512,
+            max_tokens=768,
             system=SYSTEM_PROMPT,
             messages=[
                 {
@@ -169,6 +209,13 @@ class CardIdentifierAgent:
         missing = [f for f in ("name", "number", "language") if not data.get(f)]
         if missing:
             raise ValueError(f"Required fields missing or null in response: {missing}")
+
+        if data.get("number_uncertain"):
+            print(
+                f"[identifier] number_uncertain=true for '{data.get('number')}' "
+                f"(confidence={data.get('confidence')})",
+                file=sys.stderr,
+            )
 
         return CardIdentity(
             name=data["name"],

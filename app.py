@@ -40,10 +40,13 @@ GITHUB_URL = "https://github.com/mehdipardo/CardGrader"
 # ── Session state initialisation ───────────────────────────────────────────
 def _init_state() -> None:
     defaults = {
-        "page":           "accueil",
-        "scan_history":   [],
-        "collection":     [],
-        "current_report": None,
+        "page":                   "accueil",
+        "scan_history":           [],
+        "collection":             [],
+        "current_report":         None,
+        "id_pending":             None,   # CardIdentity waiting for user confirmation
+        "id_confirmed":           False,  # True when user clicks "Confirmer"
+        "id_confirmed_identity":  None,   # CardIdentity after user edits
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -350,43 +353,100 @@ def page_scanner() -> None:
             type="primary",
         )
 
-    # ── Pipeline ───────────────────────────────────────────────────────────
+    # ── Phase 1 : Identification (runs when "Analyser" is clicked) ─────────
     if analyse and front_image is not None:
-        front_path: Optional[str] = None
-        back_path:  Optional[str] = None
+        # Clear previous scan state
+        st.session_state["id_pending"]            = None
+        st.session_state["id_confirmed"]          = False
+        st.session_state["id_confirmed_identity"] = None
+        st.session_state["current_report"]        = None
+        for key in ("_scanner_front_path", "_scanner_back_path"):
+            if key in st.session_state:
+                try:
+                    os.unlink(st.session_state[key])
+                except OSError:
+                    pass
+                del st.session_state[key]
 
         try:
             front_path = save_uploaded(front_image, _ext(front_image))
-            if back_image:
-                back_path = save_uploaded(back_image, _ext(back_image))
+            back_path  = save_uploaded(back_image, _ext(back_image)) if back_image else None
         except Exception as e:
             st.error(f"Impossible de sauvegarder les images : {e}")
             st.stop()
 
+        st.session_state["_scanner_front_path"] = front_path
+        st.session_state["_scanner_back_path"]  = back_path
+
         from src.agents.identifier import CardIdentifierAgent
-        from src.evaluation.grader import CardGrader
-        from src.evaluation.scoring import ScoringEngine
-        from src.models.card import CardIdentity, CardPricing
-        from src.tools.card_lookup import CardLookupTool, CardNotFoundError
-        from src.tools.pricing import PricingTool
-
-        identity    = None
-        tcgdex_card = None
-        condition   = None
-        pricing     = None
-        report      = None
-        pricing_unavailable = False
-
-        with st.status("Analyse en cours…", expanded=True) as status:
-
-            st.write("🔍 Identification de la carte…")
+        with st.spinner("🔍 Identification de la carte…"):
             try:
                 identity = CardIdentifierAgent(api_key=api_key).identify(front_image_path=front_path)
-                st.write(f"✅ Carte détectée : **{identity.name}** {identity.number}")
+                st.session_state["id_pending"] = identity
             except Exception as e:
                 st.error(f"Identification échouée : {e}")
 
-            if identity:
+    # ── Phase 1.5 : Human validation ───────────────────────────────────────
+    pending_identity = st.session_state.get("id_pending")
+    if pending_identity is not None and not st.session_state.get("id_confirmed"):
+        st.divider()
+        st.subheader("📋 Vérifiez l'identification")
+        st.info(
+            "Vérifiez que les informations correspondent bien à votre carte, "
+            "surtout le **numéro en bas à droite**."
+        )
+
+        LANG_OPTIONS = ["FR", "EN", "JP", "DE", "IT", "ES", "KO", "PT"]
+        lang_idx = LANG_OPTIONS.index(pending_identity.language) if pending_identity.language in LANG_OPTIONS else 0
+
+        v1, v2, v3 = st.columns(3)
+        with v1:
+            corrected_name   = st.text_input("Nom", value=pending_identity.name, key="val_name")
+        with v2:
+            corrected_number = st.text_input("Numéro", value=pending_identity.number, key="val_number")
+        with v3:
+            corrected_lang   = st.selectbox("Langue", options=LANG_OPTIONS, index=lang_idx, key="val_lang")
+
+        if st.button("✅ Confirmer et continuer l'analyse", type="primary"):
+            from src.models.card import CardIdentity as _CardIdentity
+            confirmed = _CardIdentity(
+                name=corrected_name,
+                number=corrected_number,
+                language=corrected_lang,
+                set_name=pending_identity.set_name or "",
+                set_code=pending_identity.set_code,
+                rarity=pending_identity.rarity,
+            )
+            st.session_state["id_confirmed"]          = True
+            st.session_state["id_confirmed_identity"] = confirmed
+            st.rerun()
+
+    # ── Phase 2 : Full pipeline (runs after user confirms) ─────────────────
+    if st.session_state.get("id_confirmed"):
+        identity   = st.session_state["id_confirmed_identity"]
+        front_path = st.session_state.get("_scanner_front_path")
+        back_path  = st.session_state.get("_scanner_back_path")
+
+        # Reset flags immediately so the pipeline doesn't re-run on the next rerender
+        st.session_state["id_confirmed"] = False
+        st.session_state["id_pending"]   = None
+
+        if not front_path:
+            st.error("Images temporaires perdues — veuillez rescanner.")
+        else:
+            from src.evaluation.grader import CardGrader
+            from src.evaluation.scoring import ScoringEngine
+            from src.tools.card_lookup import CardLookupTool, CardNotFoundError
+            from src.tools.pricing import PricingTool
+
+            tcgdex_card         = None
+            condition           = None
+            pricing             = None
+            report              = None
+            pricing_unavailable = False
+
+            with st.status("Analyse en cours…", expanded=True) as status:
+
                 st.write("📚 Résolution dans la base TCGdex…")
                 try:
                     tcgdex_card = CardLookupTool().resolve(identity)
@@ -402,7 +462,6 @@ def page_scanner() -> None:
                     st.warning(f"⚠️ Résolution TCGdex échouée : {e}")
                     pricing_unavailable = True
 
-            if identity:
                 st.write("🔬 Évaluation de l'état…")
                 try:
                     condition = CardGrader(api_key=api_key).grade(
@@ -413,55 +472,59 @@ def page_scanner() -> None:
                 except Exception as e:
                     st.error(f"Grading échoué : {e}")
 
-            if identity and condition and not pricing_unavailable and tcgdex_card:
-                st.write("💰 Recherche des prix…")
+                if condition and not pricing_unavailable and tcgdex_card:
+                    st.write("💰 Recherche des prix…")
+                    try:
+                        rapidapi_key = os.environ.get("RAPIDAPI_KEY")
+                        pricing = PricingTool(rapidapi_key=rapidapi_key).fetch_prices(
+                            identity=identity,
+                            tcgdex_card=tcgdex_card,
+                        )
+                        lang_tag = " (prix langue)" if pricing.language_specific else ""
+                        st.write(
+                            f"✅ Prix NM : **{pricing.raw_price:.2f} {pricing.currency}**"
+                            f"{lang_tag} — source : {pricing.source_detail}"
+                        )
+                    except Exception as e:
+                        st.warning(f"⚠️ Récupération des prix échouée : {e}")
+                        pricing_unavailable = True
+                elif condition and pricing_unavailable:
+                    st.warning("⚠️ Prix indisponibles — TCGdex introuvable. L'état et l'identité restent disponibles.")
+
+                if condition and pricing:
+                    st.write("📊 Calcul du score final…")
+                    try:
+                        report = ScoringEngine().compute_report(
+                            identity=identity,
+                            condition=condition,
+                            pricing=pricing,
+                            front_image_path=front_path,
+                            back_image_path=back_path,
+                        )
+                        st.write(f"✅ Valeur estimée : **{report.estimated_value:.2f} {pricing.currency}**")
+                    except Exception as e:
+                        st.error(f"Calcul du score échoué : {e}")
+
+                status.update(label="Analyse terminée ✅", state="complete", expanded=False)
+
+            if identity and condition:
                 try:
-                    rapidapi_key = os.environ.get("RAPIDAPI_KEY")
-                    pricing = PricingTool(rapidapi_key=rapidapi_key).fetch_prices(
-                        identity=identity,
-                        tcgdex_card=tcgdex_card,
-                    )
-                    lang_tag = " (prix langue)" if pricing.language_specific else ""
-                    st.write(f"✅ Prix NM : **{pricing.raw_price:.2f} {pricing.currency}**{lang_tag} — source : {pricing.source_detail}")
-                except Exception as e:
-                    st.warning(f"⚠️ Récupération des prix échouée : {e}")
-                    pricing_unavailable = True
-            elif identity and condition and pricing_unavailable:
-                st.warning("⚠️ Prix indisponibles — TCGdex introuvable. L'état et l'identité restent disponibles.")
+                    entry = _report_to_entry(report) if report else _partial_entry(identity, condition)
+                except Exception:
+                    entry = _partial_entry(identity, condition)
+                st.session_state["current_report"] = entry
+                st.session_state["scan_history"].append(entry)
+                st.success("✅ Scan sauvegardé dans l'historique")
 
-            if identity and condition and pricing:
-                st.write("📊 Calcul du score final…")
-                try:
-                    report = ScoringEngine().compute_report(
-                        identity=identity,
-                        condition=condition,
-                        pricing=pricing,
-                        front_image_path=front_path,
-                        back_image_path=back_path,
-                    )
-                    st.write(f"✅ Valeur estimée : **{report.estimated_value:.2f} {pricing.currency}**")
-                except Exception as e:
-                    st.error(f"Calcul du score échoué : {e}")
-
-            status.update(label="Analyse terminée ✅", state="complete", expanded=False)
-
-        # Save to scan history whenever we have at minimum identity + condition
-        if identity and condition:
-            try:
-                entry = _report_to_entry(report) if report else _partial_entry(identity, condition)
-            except Exception:
-                entry = _partial_entry(identity, condition)
-            st.session_state["current_report"] = entry
-            st.session_state["scan_history"].append(entry)
-            st.success("✅ Scan sauvegardé dans l'historique")
-
-        # Cleanup temp files
-        for path in (front_path, back_path):
-            if path:
-                try:
-                    os.unlink(path)
-                except OSError:
-                    pass
+            # Cleanup temp files
+            for path in (front_path, back_path):
+                if path:
+                    try:
+                        os.unlink(path)
+                    except OSError:
+                        pass
+            st.session_state.pop("_scanner_front_path", None)
+            st.session_state.pop("_scanner_back_path", None)
 
     # ── Display report ─────────────────────────────────────────────────────
     entry = st.session_state.get("current_report")
