@@ -40,13 +40,19 @@ GITHUB_URL = "https://github.com/mehdipardo/CardGrader"
 # ── Session state initialisation ───────────────────────────────────────────
 def _init_state() -> None:
     defaults = {
-        "page":                   "accueil",
-        "scan_history":           [],
-        "collection":             [],
-        "current_report":         None,
-        "id_pending":             None,   # CardIdentity waiting for user confirmation
-        "id_confirmed":           False,  # True when user clicks "Confirmer"
-        "id_confirmed_identity":  None,   # CardIdentity after user edits
+        "page":                "accueil",
+        "scan_history":        [],
+        "collection":          [],
+        "current_report":      None,
+        # Scanner step-machine
+        "step":                "upload",
+        "id_pending":          None,   # CardIdentity from vision
+        "tcgdex_candidates":   [],     # list of stubs from TCGdex search
+        "auto_match_id":       None,   # card id that best matches the number
+        "auto_match_card":     None,   # full card dict for the auto-match
+        "selected_card":       None,   # full card dict chosen by user
+        "show_all_cards":      False,  # toggle "Voir plus" in gallery
+        "search_name":         None,   # manual name override for retry search
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -288,248 +294,462 @@ def page_accueil() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# PAGE — SCANNER
+# PAGE — SCANNER  (3-step flow: upload → select_card → analyzing → done)
 # ══════════════════════════════════════════════════════════════════════════
-def page_scanner() -> None:
-    st.header("🔍 Scanner une carte")
 
-    # Capture mode — honour pre-selection from homepage buttons
-    default_mode = st.session_state.get("scanner_mode", "upload")
-    mode_options = ["📁 Uploader des photos", "📷 Prendre en photo"]
-    default_index = 1 if default_mode == "camera" else 0
+# ── Scanner helpers ────────────────────────────────────────────────────────
 
-    capture_mode = st.radio(
-        "Mode de capture",
-        mode_options,
-        index=default_index,
-        horizontal=True,
-        label_visibility="collapsed",
-    )
+TCGDEX_BASE = "https://api.tcgdex.net/v2"
+TCGDEX_LANG_MAP: dict[str, str] = {
+    "FR": "fr", "EN": "en", "JP": "ja", "DE": "de",
+    "IT": "it", "ES": "es", "KO": "ko", "PT": "pt",
+}
 
-    front_image = None
-    back_image  = None
 
-    col_front, col_back = st.columns(2)
-
-    if capture_mode == "📁 Uploader des photos":
-        with col_front:
-            st.markdown("**📸 Recto (obligatoire)**")
-            front_file = st.file_uploader(
-                "Recto", type=["jpg", "jpeg", "png", "webp"],
-                key="upload_front", label_visibility="collapsed",
-            )
-            if front_file:
-                front_image = front_file
-                st.image(front_file, use_container_width=True)
-        with col_back:
-            st.markdown("**📸 Verso (optionnel)**")
-            back_file = st.file_uploader(
-                "Verso", type=["jpg", "jpeg", "png", "webp"],
-                key="upload_back", label_visibility="collapsed",
-            )
-            if back_file:
-                back_image = back_file
-                st.image(back_file, use_container_width=True)
-    else:
-        with col_front:
-            st.markdown("**📸 Recto (obligatoire)**")
-            front_cam = st.camera_input("Recto", key="cam_front", label_visibility="collapsed")
-            if front_cam:
-                front_image = front_cam
-        with col_back:
-            st.markdown("**📸 Verso (optionnel)**")
-            back_cam = st.camera_input("Verso", key="cam_back", label_visibility="collapsed")
-            if back_cam:
-                back_image = back_cam
-
-    # Analyse button
-    st.write("")
-    _, btn_col, _ = st.columns([2, 3, 2])
-    with btn_col:
-        analyse = st.button(
-            "🔍 Analyser ma carte",
-            disabled=front_image is None,
-            use_container_width=True,
-            type="primary",
-        )
-
-    # ── Phase 1 : Identification (runs when "Analyser" is clicked) ─────────
-    if analyse and front_image is not None:
-        # Clear previous scan state
-        st.session_state["id_pending"]            = None
-        st.session_state["id_confirmed"]          = False
-        st.session_state["id_confirmed_identity"] = None
-        st.session_state["current_report"]        = None
-        for key in ("_scanner_front_path", "_scanner_back_path"):
-            if key in st.session_state:
-                try:
-                    os.unlink(st.session_state[key])
-                except OSError:
-                    pass
-                del st.session_state[key]
-
-        try:
-            front_path = save_uploaded(front_image, _ext(front_image))
-            back_path  = save_uploaded(back_image, _ext(back_image)) if back_image else None
-        except Exception as e:
-            st.error(f"Impossible de sauvegarder les images : {e}")
-            st.stop()
-
-        st.session_state["_scanner_front_path"] = front_path
-        st.session_state["_scanner_back_path"]  = back_path
-
-        from src.agents.identifier import CardIdentifierAgent
-        with st.spinner("🔍 Identification de la carte…"):
+def _reset_scanner() -> None:
+    """Clear all scanner step-machine state."""
+    for key in (
+        "step", "id_pending", "tcgdex_candidates", "auto_match_id",
+        "auto_match_card", "selected_card", "show_all_cards",
+        "current_report", "search_name",
+        # legacy keys from old validation form
+        "id_confirmed", "id_confirmed_identity",
+    ):
+        st.session_state.pop(key, None)
+    for key in ("_scanner_front_path", "_scanner_back_path"):
+        path = st.session_state.pop(key, None)
+        if path:
             try:
-                identity = CardIdentifierAgent(api_key=api_key).identify(front_image_path=front_path)
-                st.session_state["id_pending"] = identity
-            except Exception as e:
-                st.error(f"Identification échouée : {e}")
+                os.unlink(path)
+            except OSError:
+                pass
 
-    # ── Phase 1.5 : Human validation ───────────────────────────────────────
-    pending_identity = st.session_state.get("id_pending")
-    if pending_identity is not None and not st.session_state.get("id_confirmed"):
-        st.divider()
-        st.subheader("📋 Vérifiez l'identification")
-        st.info(
-            "Vérifiez que les informations correspondent bien à votre carte, "
-            "surtout le **numéro en bas à droite**."
+
+def _tcgdex_search(name: str, lang: str) -> list:
+    """Search TCGdex by name; return list of stubs."""
+    import httpx
+    try:
+        resp = httpx.get(
+            f"{TCGDEX_BASE}/{lang}/cards",
+            params={"name": name},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        result = resp.json()
+        return result if isinstance(result, list) else []
+    except Exception as exc:
+        print(f"[tcgdex_search] {exc}", file=__import__("sys").stderr)
+        return []
+
+
+def _tcgdex_fetch_card(card_id: str, lang: str) -> dict:
+    """Fetch a full TCGdex card by its global id."""
+    import httpx
+    resp = httpx.get(f"{TCGDEX_BASE}/{lang}/cards/{card_id}", timeout=10.0)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _compute_auto_match(identity, candidates: list, lang: str):
+    """Return (matched_id, full_card_or_None) for the best localId+cardCount match."""
+    from src.tools.card_lookup import _number_matches, _extract_set_total
+    import httpx, sys
+
+    local_matches = [
+        c for c in candidates
+        if _number_matches(identity.number, str(c.get("localId") or c.get("id", "")))
+    ]
+    if not local_matches:
+        return None, None
+
+    total_in_set = _extract_set_total(identity.number)
+
+    if len(local_matches) == 1 or total_in_set is None:
+        cid = local_matches[0]["id"]
+        print(f"[auto-match] Suggestion: {cid} (single localId match)", file=sys.stderr)
+        try:
+            full = _tcgdex_fetch_card(cid, lang)
+            return cid, full
+        except Exception:
+            return cid, None
+
+    # Multiple local matches — disambiguate by cardCount
+    perfect = acceptable = None
+    perfect_card = acceptable_card = None
+    for stub in local_matches:
+        cid = stub.get("id")
+        try:
+            full = _tcgdex_fetch_card(cid, lang)
+        except Exception:
+            continue
+        card_count = (full.get("set") or {}).get("cardCount") or {}
+        official   = card_count.get("official")
+        total      = card_count.get("total")
+        print(f"[auto-match] {cid}: cardCount={card_count}", file=sys.stderr)
+        if official == total_in_set:
+            print(f"[auto-match] Suggestion: {cid} (cardCount.official={official} == total={total_in_set})", file=sys.stderr)
+            return cid, full
+        if total == total_in_set and acceptable is None:
+            acceptable, acceptable_card = cid, full
+
+    if acceptable:
+        return acceptable, acceptable_card
+    cid = local_matches[0]["id"]
+    try:
+        full = _tcgdex_fetch_card(cid, lang)
+    except Exception:
+        full = None
+    return cid, full
+
+
+def _card_image_url(card: dict, quality: str = "high") -> str:
+    base = card.get("image", "")
+    return f"{base}/{quality}.webp" if base else ""
+
+
+def _render_card_tile(card: dict, btn_label: str, btn_key: str, btn_type: str = "secondary") -> bool:
+    """Render one card tile (image + info + button). Returns True when button clicked."""
+    img_url = _card_image_url(card, "high")
+    fallback = _card_image_url(card, "low")
+    set_name = (card.get("set") or {}).get("name", "")
+    local_id = card.get("localId", card.get("id", ""))
+
+    # Display image — try high quality, fallback shown via alt text
+    if img_url:
+        try:
+            st.image(img_url, width=150)
+        except Exception:
+            if fallback:
+                st.image(fallback, width=150)
+            else:
+                st.markdown("🃏")
+    else:
+        st.markdown("🃏")
+
+    st.caption(f"**{local_id}** — {set_name}")
+    return st.button(btn_label, key=btn_key, use_container_width=True, type=btn_type)
+
+
+# ── Main scanner page ──────────────────────────────────────────────────────
+
+def page_scanner() -> None:
+    step = st.session_state.get("step", "upload")
+
+    hcol, bcol = st.columns([5, 1])
+    with hcol:
+        st.header("🔍 Scanner une carte")
+    with bcol:
+        if step != "upload":
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🔄 Nouvelle analyse", use_container_width=True):
+                _reset_scanner()
+                st.rerun()
+
+    # ── STEP: upload ────────────────────────────────────────────────────────
+    if step == "upload":
+        default_mode = st.session_state.get("scanner_mode", "upload")
+        mode_options = ["📁 Uploader des photos", "📷 Prendre en photo"]
+        default_index = 1 if default_mode == "camera" else 0
+        capture_mode = st.radio(
+            "Mode de capture", mode_options, index=default_index,
+            horizontal=True, label_visibility="collapsed",
         )
 
-        LANG_OPTIONS = ["FR", "EN", "JP", "DE", "IT", "ES", "KO", "PT"]
-        lang_idx = LANG_OPTIONS.index(pending_identity.language) if pending_identity.language in LANG_OPTIONS else 0
+        front_image = back_image = None
+        col_front, col_back = st.columns(2)
 
-        v1, v2, v3 = st.columns(3)
-        with v1:
-            corrected_name   = st.text_input("Nom", value=pending_identity.name, key="val_name")
-        with v2:
-            corrected_number = st.text_input("Numéro", value=pending_identity.number, key="val_number")
-        with v3:
-            corrected_lang   = st.selectbox("Langue", options=LANG_OPTIONS, index=lang_idx, key="val_lang")
+        if capture_mode == "📁 Uploader des photos":
+            with col_front:
+                st.markdown("**📸 Recto (obligatoire)**")
+                front_file = st.file_uploader(
+                    "Recto", type=["jpg", "jpeg", "png", "webp"],
+                    key="upload_front", label_visibility="collapsed",
+                )
+                if front_file:
+                    front_image = front_file
+                    st.image(front_file, use_container_width=True)
+            with col_back:
+                st.markdown("**📸 Verso (optionnel)**")
+                back_file = st.file_uploader(
+                    "Verso", type=["jpg", "jpeg", "png", "webp"],
+                    key="upload_back", label_visibility="collapsed",
+                )
+                if back_file:
+                    back_image = back_file
+                    st.image(back_file, use_container_width=True)
+        else:
+            with col_front:
+                st.markdown("**📸 Recto (obligatoire)**")
+                front_cam = st.camera_input("Recto", key="cam_front", label_visibility="collapsed")
+                if front_cam:
+                    front_image = front_cam
+            with col_back:
+                st.markdown("**📸 Verso (optionnel)**")
+                back_cam = st.camera_input("Verso", key="cam_back", label_visibility="collapsed")
+                if back_cam:
+                    back_image = back_cam
 
-        if st.button("✅ Confirmer et continuer l'analyse", type="primary"):
-            from src.models.card import CardIdentity as _CardIdentity
-            confirmed = _CardIdentity(
-                name=corrected_name,
-                number=corrected_number,
-                language=corrected_lang,
-                set_name=pending_identity.set_name or "",
-                set_code=pending_identity.set_code,
-                rarity=pending_identity.rarity,
+        st.write("")
+        _, btn_col, _ = st.columns([2, 3, 2])
+        with btn_col:
+            analyse = st.button(
+                "🔍 Analyser ma carte",
+                disabled=front_image is None,
+                use_container_width=True,
+                type="primary",
             )
-            st.session_state["id_confirmed"]          = True
-            st.session_state["id_confirmed_identity"] = confirmed
+
+        if analyse and front_image is not None:
+            # Save temp files
+            try:
+                front_path = save_uploaded(front_image, _ext(front_image))
+                back_path  = save_uploaded(back_image, _ext(back_image)) if back_image else None
+            except Exception as e:
+                st.error(f"Impossible de sauvegarder les images : {e}")
+                return
+            st.session_state["_scanner_front_path"] = front_path
+            st.session_state["_scanner_back_path"]  = back_path
+
+            # Step 1 — vision identification
+            from src.agents.identifier import CardIdentifierAgent
+            with st.spinner("🔍 Identification de la carte…"):
+                try:
+                    identity = CardIdentifierAgent(api_key=api_key).identify(front_path)
+                    st.session_state["id_pending"] = identity
+                except Exception as e:
+                    st.error(f"Identification échouée : {e}")
+                    return
+
+            identity = st.session_state["id_pending"]
+            lang = TCGDEX_LANG_MAP.get(identity.language, "en")
+
+            # Step 2 — TCGdex search
+            search_name = identity.name
+            with st.spinner(f"📚 Recherche '{search_name}' dans TCGdex…"):
+                candidates = _tcgdex_search(search_name, lang)
+            st.session_state["tcgdex_candidates"] = candidates
+            st.session_state["search_name"]       = search_name
+
+            # Step 3 — auto-match
+            if candidates:
+                with st.spinner("🎯 Calcul de la suggestion…"):
+                    match_id, match_card = _compute_auto_match(identity, candidates, lang)
+                st.session_state["auto_match_id"]   = match_id
+                st.session_state["auto_match_card"]  = match_card
+            else:
+                st.session_state["auto_match_id"]   = None
+                st.session_state["auto_match_card"]  = None
+
+            st.session_state["step"] = "select_card"
             st.rerun()
 
-    # ── Phase 2 : Full pipeline (runs after user confirms) ─────────────────
-    if st.session_state.get("id_confirmed"):
-        identity   = st.session_state["id_confirmed_identity"]
-        front_path = st.session_state.get("_scanner_front_path")
-        back_path  = st.session_state.get("_scanner_back_path")
+    # ── STEP: select_card ───────────────────────────────────────────────────
+    elif step == "select_card":
+        identity      = st.session_state.get("id_pending")
+        candidates    = st.session_state.get("tcgdex_candidates", [])
+        auto_match_id = st.session_state.get("auto_match_id")
+        auto_match_card = st.session_state.get("auto_match_card")
+        lang          = TCGDEX_LANG_MAP.get(identity.language if identity else "EN", "en")
+        search_name   = st.session_state.get("search_name", identity.name if identity else "")
 
-        # Reset flags immediately so the pipeline doesn't re-run on the next rerender
-        st.session_state["id_confirmed"] = False
-        st.session_state["id_pending"]   = None
+        if identity:
+            st.success(f"✅ Carte détectée : **{identity.name}** ({identity.language}) — numéro lu : `{identity.number}`")
 
-        if not front_path:
-            st.error("Images temporaires perdues — veuillez rescanner.")
-        else:
-            from src.evaluation.grader import CardGrader
-            from src.evaluation.scoring import ScoringEngine
-            from src.tools.card_lookup import CardLookupTool, CardNotFoundError
-            from src.tools.pricing import PricingTool
+        if not candidates:
+            # No results — offer retry
+            st.warning(f"Aucune carte trouvée pour « {search_name} » dans TCGdex.")
+            new_name = st.text_input("Essayez un autre nom :", value=search_name, key="retry_name")
+            if st.button("🔍 Rechercher", type="primary"):
+                with st.spinner(f"Recherche '{new_name}'…"):
+                    new_candidates = _tcgdex_search(new_name, lang)
+                st.session_state["tcgdex_candidates"] = new_candidates
+                st.session_state["search_name"]       = new_name
+                if new_candidates and identity:
+                    with st.spinner("Calcul suggestion…"):
+                        mid, mcard = _compute_auto_match(identity, new_candidates, lang)
+                    st.session_state["auto_match_id"]  = mid
+                    st.session_state["auto_match_card"] = mcard
+                else:
+                    st.session_state["auto_match_id"]  = None
+                    st.session_state["auto_match_card"] = None
+                st.rerun()
+            return
 
-            tcgdex_card         = None
-            condition           = None
-            pricing             = None
-            report              = None
-            pricing_unavailable = False
+        show_all   = st.session_state.get("show_all_cards", False)
+        MAX_SHOWN  = 12
+        others     = [c for c in candidates if c.get("id") != auto_match_id]
+        display_others = others if show_all else others[:MAX_SHOWN]
 
-            with st.status("Analyse en cours…", expanded=True) as status:
+        # ── AI suggestion ──────────────────────────────────────────────────
+        if auto_match_id and auto_match_card:
+            with st.container(border=True):
+                st.markdown("#### ✅ Suggestion de l'IA")
+                tile_col, info_col = st.columns([1, 2])
+                with tile_col:
+                    img_url = _card_image_url(auto_match_card, "high")
+                    if img_url:
+                        st.image(img_url, width=180)
+                with info_col:
+                    set_info = auto_match_card.get("set") or {}
+                    st.markdown(f"**{auto_match_card.get('name', '')}**")
+                    st.write(f"Set : {set_info.get('name', '—')}")
+                    st.write(f"N° : {auto_match_card.get('localId', auto_match_id)}")
+                    cc = set_info.get("cardCount") or {}
+                    if cc.get("official"):
+                        st.caption(f"Set de {cc['official']} cartes officielles")
+                    if st.button("✅ Confirmer cette carte", type="primary", key="confirm_auto"):
+                        st.session_state["selected_card"] = auto_match_card
+                        st.session_state["step"]          = "analyzing"
+                        st.rerun()
+        elif auto_match_id:
+            # We have an ID but no full card fetched — show a simpler confirm
+            st.info(f"Suggestion IA : `{auto_match_id}`")
+            if st.button("✅ Confirmer cette suggestion", type="primary", key="confirm_auto_id"):
+                with st.spinner("Chargement de la carte…"):
+                    try:
+                        full = _tcgdex_fetch_card(auto_match_id, lang)
+                        st.session_state["selected_card"] = full
+                    except Exception as e:
+                        st.error(f"Erreur : {e}")
+                        return
+                st.session_state["step"] = "analyzing"
+                st.rerun()
 
-                st.write("📚 Résolution dans la base TCGdex…")
+        # ── Other versions ─────────────────────────────────────────────────
+        if display_others:
+            st.markdown("---")
+            label = "Autres versions :" if auto_match_id else "Sélectionnez votre carte :"
+            st.subheader(label)
+
+            n_cols = 4
+            for row_start in range(0, len(display_others), n_cols):
+                row = display_others[row_start:row_start + n_cols]
+                cols = st.columns(n_cols)
+                for col, card in zip(cols, row):
+                    with col:
+                        cid = card.get("id", "")
+                        clicked = _render_card_tile(
+                            card,
+                            btn_label="C'est celle-ci",
+                            btn_key=f"pick_{cid}",
+                        )
+                        if clicked:
+                            with st.spinner("Chargement de la carte…"):
+                                try:
+                                    full = _tcgdex_fetch_card(cid, lang)
+                                    st.session_state["selected_card"] = full
+                                except Exception as e:
+                                    st.error(f"Impossible de charger la carte : {e}")
+                                    return
+                            st.session_state["step"] = "analyzing"
+                            st.rerun()
+
+            if not show_all and len(others) > MAX_SHOWN:
+                remaining = len(others) - MAX_SHOWN
+                st.caption(f"… et {remaining} autre{'s' if remaining > 1 else ''} version(s)")
+                if st.button("Voir plus", key="show_all_btn"):
+                    st.session_state["show_all_cards"] = True
+                    st.rerun()
+
+    # ── STEP: analyzing ─────────────────────────────────────────────────────
+    elif step == "analyzing":
+        selected_card = st.session_state.get("selected_card")
+        front_path    = st.session_state.get("_scanner_front_path")
+        back_path     = st.session_state.get("_scanner_back_path")
+        identity      = st.session_state.get("id_pending")
+
+        if not selected_card or not front_path or not identity:
+            st.error("Données manquantes — veuillez rescanner.")
+            _reset_scanner()
+            st.rerun()
+            return
+
+        from src.evaluation.grader import CardGrader
+        from src.evaluation.scoring import ScoringEngine
+        from src.tools.pricing import PricingTool
+
+        # Enrich identity from selected TCGdex card
+        set_info = selected_card.get("set") or {}
+        identity.set_name = identity.set_name or set_info.get("name", "")
+        identity.set_code = identity.set_code or set_info.get("id", "").split("-")[0] or None
+        identity.rarity   = identity.rarity   or selected_card.get("rarity")
+
+        condition = None
+        pricing   = None
+        report    = None
+
+        with st.status("Analyse en cours…", expanded=True) as status:
+
+            st.write("🔬 Évaluation de l'état…")
+            try:
+                condition = CardGrader(api_key=api_key).grade(
+                    front_image_path=front_path,
+                    back_image_path=back_path,
+                )
+                st.write(f"✅ Score global : **{condition.overall_score}/10** {score_color(condition.overall_score)}")
+            except Exception as e:
+                st.error(f"Grading échoué : {e}")
+
+            if condition:
+                st.write("💰 Recherche des prix…")
                 try:
-                    tcgdex_card = CardLookupTool().resolve(identity)
-                    set_name = (tcgdex_card.get("set") or {}).get("name", "")
-                    identity.set_name = identity.set_name or set_name
-                    identity.set_code = identity.set_code or tcgdex_card.get("id", "").split("-")[0] or None
-                    identity.rarity   = identity.rarity   or tcgdex_card.get("rarity")
-                    st.write(f"✅ Set trouvé : **{identity.set_name or tcgdex_card.get('id', '?')}**")
-                except CardNotFoundError as e:
-                    st.warning(f"⚠️ Carte introuvable dans TCGdex : {e}")
-                    pricing_unavailable = True
+                    rapidapi_key = os.environ.get("RAPIDAPI_KEY")
+                    pricing = PricingTool(rapidapi_key=rapidapi_key).fetch_prices(
+                        identity=identity,
+                        tcgdex_card=selected_card,
+                    )
+                    lang_tag = " (prix langue)" if pricing.language_specific else ""
+                    st.write(
+                        f"✅ Prix NM : **{pricing.raw_price:.2f} {pricing.currency}**"
+                        f"{lang_tag} — source : {pricing.source_detail}"
+                    )
                 except Exception as e:
-                    st.warning(f"⚠️ Résolution TCGdex échouée : {e}")
-                    pricing_unavailable = True
+                    st.warning(f"⚠️ Récupération des prix échouée : {e}")
 
-                st.write("🔬 Évaluation de l'état…")
+            if condition and pricing:
+                st.write("📊 Calcul du score final…")
                 try:
-                    condition = CardGrader(api_key=api_key).grade(
+                    report = ScoringEngine().compute_report(
+                        identity=identity,
+                        condition=condition,
+                        pricing=pricing,
                         front_image_path=front_path,
                         back_image_path=back_path,
                     )
-                    st.write(f"✅ Score global : **{condition.overall_score}/10** {score_color(condition.overall_score)}")
+                    st.write(f"✅ Valeur estimée : **{report.estimated_value:.2f} {pricing.currency}**")
                 except Exception as e:
-                    st.error(f"Grading échoué : {e}")
+                    st.error(f"Calcul du score échoué : {e}")
 
-                if condition and not pricing_unavailable and tcgdex_card:
-                    st.write("💰 Recherche des prix…")
-                    try:
-                        rapidapi_key = os.environ.get("RAPIDAPI_KEY")
-                        pricing = PricingTool(rapidapi_key=rapidapi_key).fetch_prices(
-                            identity=identity,
-                            tcgdex_card=tcgdex_card,
-                        )
-                        lang_tag = " (prix langue)" if pricing.language_specific else ""
-                        st.write(
-                            f"✅ Prix NM : **{pricing.raw_price:.2f} {pricing.currency}**"
-                            f"{lang_tag} — source : {pricing.source_detail}"
-                        )
-                    except Exception as e:
-                        st.warning(f"⚠️ Récupération des prix échouée : {e}")
-                        pricing_unavailable = True
-                elif condition and pricing_unavailable:
-                    st.warning("⚠️ Prix indisponibles — TCGdex introuvable. L'état et l'identité restent disponibles.")
+            status.update(label="Analyse terminée ✅", state="complete", expanded=False)
 
-                if condition and pricing:
-                    st.write("📊 Calcul du score final…")
-                    try:
-                        report = ScoringEngine().compute_report(
-                            identity=identity,
-                            condition=condition,
-                            pricing=pricing,
-                            front_image_path=front_path,
-                            back_image_path=back_path,
-                        )
-                        st.write(f"✅ Valeur estimée : **{report.estimated_value:.2f} {pricing.currency}**")
-                    except Exception as e:
-                        st.error(f"Calcul du score échoué : {e}")
+        # Save entry
+        if identity and condition:
+            try:
+                entry = _report_to_entry(report) if report else _partial_entry(identity, condition)
+            except Exception:
+                entry = _partial_entry(identity, condition)
+            st.session_state["current_report"] = entry
+            st.session_state["scan_history"].append(entry)
+            st.success("✅ Scan sauvegardé dans l'historique")
 
-                status.update(label="Analyse terminée ✅", state="complete", expanded=False)
-
-            if identity and condition:
+        # Cleanup temp files
+        for path in (front_path, back_path):
+            if path:
                 try:
-                    entry = _report_to_entry(report) if report else _partial_entry(identity, condition)
-                except Exception:
-                    entry = _partial_entry(identity, condition)
-                st.session_state["current_report"] = entry
-                st.session_state["scan_history"].append(entry)
-                st.success("✅ Scan sauvegardé dans l'historique")
+                    os.unlink(path)
+                except OSError:
+                    pass
+        st.session_state.pop("_scanner_front_path", None)
+        st.session_state.pop("_scanner_back_path", None)
 
-            # Cleanup temp files
-            for path in (front_path, back_path):
-                if path:
-                    try:
-                        os.unlink(path)
-                    except OSError:
-                        pass
-            st.session_state.pop("_scanner_front_path", None)
-            st.session_state.pop("_scanner_back_path", None)
+        st.session_state["step"] = "done"
+        st.rerun()
 
-    # ── Display report ─────────────────────────────────────────────────────
-    entry = st.session_state.get("current_report")
-    if entry:
-        _render_report(entry, front_image)
+    # ── STEP: done ──────────────────────────────────────────────────────────
+    elif step == "done":
+        entry = st.session_state.get("current_report")
+        if entry:
+            _render_report(entry, front_image=None)
 
 
 def _render_report(entry: dict, front_image=None) -> None:
