@@ -35,6 +35,32 @@ def _normalize_number(number: str) -> str:
     return "/".join(str(int(p)) if p.isdigit() else p for p in parts)
 
 
+def _number_matches(identity_number: str, tcgdex_local_id: str) -> bool:
+    """Return True if identity_number corresponds to a TCGdex localId.
+
+    The vision agent produces full collector numbers like "2/102" or "002/102",
+    while TCGdex localId is just the set-local part like "2".
+    Matching rules (both sides are zero-stripped):
+      "2/102"   == "2"     → True   (strip /total)
+      "002/102" == "2"     → True   (strip /total + zeros)
+      "26/106"  == "26"    → True
+      "2/102"   == "2/102" → True   (exact match kept as fallback)
+      "2/102"   == "3"     → False
+    """
+    def _norm(s: str) -> str:
+        return str(int(s)) if s.isdigit() else s.lower()
+
+    norm_local = _norm(tcgdex_local_id)
+
+    # Exact normalized match ("2" == "2")
+    if _norm(identity_number) == norm_local:
+        return True
+
+    # Match local part before "/" ("2/102" → "2")
+    local_part = identity_number.split("/")[0]
+    return _norm(local_part) == norm_local
+
+
 class CardLookupTool:
     """Resolves a CardIdentity to a full TCGDex card record.
 
@@ -81,26 +107,21 @@ class CardLookupTool:
                 f"No cards found for name '{identity.name}' (lang={lang})"
             )
 
-        # Step 2 — match on normalised number
-        target = _normalize_number(identity.number)
+        # Step 2 — match on localId using _number_matches
+        # TCGdex search stubs expose only localId (e.g. "2"), not the full
+        # collector number ("2/102") — _number_matches handles the difference.
         matched_id: Optional[str] = None
         for card in candidates:
-            local_id = card.get("localId") or card.get("id", "")
-            # TCGDex localId is the number within the set (e.g. "2" or "002")
-            # The global id is like "base1-2"
-            card_number = card.get("number") or local_id
-            if _normalize_number(str(card_number)) == target:
+            local_id = str(card.get("localId") or card.get("id", ""))
+            if _number_matches(identity.number, local_id):
                 matched_id = card.get("id")
                 break
 
         if matched_id is None:
-            found = [
-                _normalize_number(str(c.get("number") or c.get("localId", "")))
-                for c in candidates[:10]
-            ]
+            found = [str(c.get("localId") or c.get("id", "")) for c in candidates[:10]]
             raise CardNotFoundError(
                 f"No card with number '{identity.number}' among TCGDex results "
-                f"for '{identity.name}'. Numbers found: {found}"
+                f"for '{identity.name}'. localIds found: {found}"
             )
 
         # Step 3 — fetch full card by ID

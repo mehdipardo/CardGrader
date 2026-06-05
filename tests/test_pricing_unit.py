@@ -1,7 +1,7 @@
 """Unit tests for the two-layer pricing tool (no live API calls)."""
 
 from src.tools.pricing import PricingTool, SOURCE_TCGDEX_ONLY, SOURCE_TCGDEX_RAPID
-from src.tools.card_lookup import _normalize_number
+from src.tools.card_lookup import _normalize_number, _number_matches
 
 
 # ── card_lookup helpers ────────────────────────────────────────────────────
@@ -11,6 +11,15 @@ def test_normalize_strips_leading_zeros():
     assert _normalize_number("026/106") == "26/106"
     assert _normalize_number("2/102")   == "2/102"
     assert _normalize_number("100/100") == "100/100"
+
+
+def test_number_matches_strips_set_total():
+    assert _number_matches("2/102",   "2")   is True
+    assert _number_matches("002/102", "2")   is True
+    assert _number_matches("26/106",  "26")  is True
+    assert _number_matches("2/102",   "2/102") is True  # exact fallback
+    assert _number_matches("2/102",   "3")   is False
+    assert _number_matches("10/102",  "1")   is False
 
 
 # ── TCGDex layer ───────────────────────────────────────────────────────────
