@@ -1,7 +1,7 @@
 """Unit tests for the two-layer pricing tool (no live API calls)."""
 
 from src.tools.pricing import PricingTool, SOURCE_TCGDEX_ONLY, SOURCE_TCGDEX_RAPID
-from src.tools.card_lookup import _normalize_number, _number_matches
+from src.tools.card_lookup import _normalize_number, _number_matches, _extract_set_total
 
 
 # ── card_lookup helpers ────────────────────────────────────────────────────
@@ -20,6 +20,14 @@ def test_number_matches_strips_set_total():
     assert _number_matches("2/102",   "2/102") is True  # exact fallback
     assert _number_matches("2/102",   "3")   is False
     assert _number_matches("10/102",  "1")   is False
+
+
+def test_extract_set_total():
+    assert _extract_set_total("2/102")   == 102
+    assert _extract_set_total("26/106")  == 106
+    assert _extract_set_total("002/102") == 102
+    assert _extract_set_total("2")       is None
+    assert _extract_set_total("SV01")    is None
 
 
 # ── TCGDex layer ───────────────────────────────────────────────────────────

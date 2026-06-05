@@ -26,6 +26,10 @@ class CardNotFoundError(Exception):
     """Raised when TCGDex finds no card matching the requested identity."""
 
 
+def _log(msg: str) -> None:
+    print(f"[card_lookup] {msg}", file=sys.stderr)
+
+
 def _normalize_number(number: str) -> str:
     """Strip leading zeros from each part of a collector number.
 
@@ -61,6 +65,17 @@ def _number_matches(identity_number: str, tcgdex_local_id: str) -> bool:
     return _norm(local_part) == norm_local
 
 
+def _extract_set_total(number: str) -> Optional[int]:
+    """Extract the set size from a collector number.
+
+    "2/102" → 102,  "26/106" → 106,  "2" → None.
+    """
+    parts = number.split("/")
+    if len(parts) == 2 and parts[1].isdigit():
+        return int(parts[1])
+    return None
+
+
 class CardLookupTool:
     """Resolves a CardIdentity to a full TCGDex card record.
 
@@ -70,8 +85,11 @@ class CardLookupTool:
 
     Lookup strategy:
       1. Search by name in the card's language → list of card stubs
-      2. Match on normalised collector number
-      3. Fetch the full card by ID to get pricing and all metadata
+      2. Filter stubs by localId match (handles "2/102" vs "2")
+      3. If multiple localId matches, fetch each full card and pick the one
+         whose cardCount matches the set size from the collector number
+         (priority: cardCount.official > cardCount.total > first match)
+      4. Return the full card (with pricing block)
     """
 
     def __init__(self) -> None:
@@ -107,25 +125,72 @@ class CardLookupTool:
                 f"No cards found for name '{identity.name}' (lang={lang})"
             )
 
-        # Step 2 — match on localId using _number_matches
-        # TCGdex search stubs expose only localId (e.g. "2"), not the full
-        # collector number ("2/102") — _number_matches handles the difference.
-        matched_id: Optional[str] = None
-        for card in candidates:
-            local_id = str(card.get("localId") or card.get("id", ""))
-            if _number_matches(identity.number, local_id):
-                matched_id = card.get("id")
-                break
+        # Step 2 — filter by localId (cheap, no extra API calls)
+        local_id_matches = [
+            c for c in candidates
+            if _number_matches(identity.number, str(c.get("localId") or c.get("id", "")))
+        ]
 
-        if matched_id is None:
+        if not local_id_matches:
             found = [str(c.get("localId") or c.get("id", "")) for c in candidates[:10]]
             raise CardNotFoundError(
                 f"No card with number '{identity.number}' among TCGDex results "
                 f"for '{identity.name}'. localIds found: {found}"
             )
 
-        # Step 3 — fetch full card by ID
-        return self.get_card_by_id(matched_id, language=lang)
+        total_in_set = _extract_set_total(identity.number)
+
+        # Fast path: single match or no set size info to disambiguate on
+        if len(local_id_matches) == 1 or total_in_set is None:
+            matched_id = local_id_matches[0]["id"]
+            reason = "single localId match" if len(local_id_matches) == 1 else "no set total, using first localId match"
+            _log(f"{reason} → {matched_id}")
+            return self.get_card_by_id(matched_id, language=lang)
+
+        # Step 3 — multiple localId matches: disambiguate by cardCount
+        # Only fetch full cards for the localId matches (not all search results)
+        _log(
+            f"{len(local_id_matches)} localId matches for '{identity.number}', "
+            f"disambiguating by cardCount (set total={total_in_set})"
+        )
+
+        perfect:    Optional[dict] = None
+        acceptable: Optional[dict] = None
+
+        with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
+            for stub in local_id_matches:
+                card_id = stub.get("id")
+                try:
+                    resp = client.get(f"{BASE_URL}/{lang}/cards/{card_id}")
+                    resp.raise_for_status()
+                    full_card = resp.json()
+                except Exception as exc:
+                    _log(f"  skip {card_id} — fetch failed: {exc}")
+                    continue
+
+                card_count = full_card.get("cardCount") or {}
+                official   = card_count.get("official")
+                total      = card_count.get("total")
+                _log(f"  {card_id}: cardCount={card_count}")
+
+                if official == total_in_set:
+                    _log(f"  → perfect match (cardCount.official={official})")
+                    perfect = full_card
+                    break
+
+                if total == total_in_set and acceptable is None:
+                    _log(f"  → acceptable match (cardCount.total={total})")
+                    acceptable = full_card
+
+        if perfect:
+            return perfect
+        if acceptable:
+            return acceptable
+
+        # Fallback: first localId match (no cardCount matched set size)
+        fallback_id = local_id_matches[0]["id"]
+        _log(f"no cardCount match for total={total_in_set}, fallback → {fallback_id}")
+        return self.get_card_by_id(fallback_id, language=lang)
 
     def get_card_by_id(self, card_id: str, language: str = "en") -> dict:
         """Fetch a full TCGDex card record by its global ID.
@@ -171,11 +236,11 @@ if __name__ == "__main__":
         card = tool.resolve(identity)
         print(json.dumps(card, indent=2, ensure_ascii=False))
     except CardNotFoundError as e:
-        print(f"Card not found: {e}")
+        print(f"Card not found: {e}", file=sys.stderr)
         sys.exit(1)
     except httpx.HTTPStatusError as e:
-        print(f"API error {e.response.status_code}: {e.response.text}")
+        print(f"API error {e.response.status_code}: {e.response.text}", file=sys.stderr)
         sys.exit(1)
     except httpx.TimeoutException:
-        print("Error: TCGDex request timed out")
+        print("Error: TCGDex request timed out", file=sys.stderr)
         sys.exit(1)
