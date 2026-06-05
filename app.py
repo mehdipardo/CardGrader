@@ -89,20 +89,42 @@ def _go(page: str) -> None:
 
 
 def _report_to_entry(report, scanned_at: Optional[str] = None) -> dict:
-    """Serialize a CardReport into a flat session_state entry."""
+    """Serialize a full CardReport into a flat session_state entry."""
     return {
-        "card_name":       report.identity.name,
-        "card_number":     report.identity.number,
-        "language":        report.identity.language,
-        "set_name":        report.identity.set_name or "",
-        "rarity":          report.identity.rarity or "",
-        "overall_score":   report.condition.overall_score,
-        "estimated_value": report.estimated_value,
-        "value_range_low": report.value_range_low,
-        "value_range_high":report.value_range_high,
-        "confidence":      report.confidence_score,
-        "scanned_at":      scanned_at or datetime.utcnow().isoformat(),
-        "report":          report,
+        "card_name":        report.identity.name,
+        "card_number":      report.identity.number,
+        "language":         report.identity.language,
+        "set_name":         report.identity.set_name or "",
+        "rarity":           report.identity.rarity or "",
+        "overall_score":    report.condition.overall_score,
+        "estimated_value":  report.estimated_value,
+        "value_range_low":  report.value_range_low,
+        "value_range_high": report.value_range_high,
+        "confidence":       report.confidence_score,
+        "scanned_at":       scanned_at or datetime.utcnow().isoformat(),
+        "report":           report,
+        "_identity":        report.identity,
+        "_condition":       report.condition,
+    }
+
+
+def _partial_entry(identity, condition, scanned_at: Optional[str] = None) -> dict:
+    """Build a session_state entry from identity + condition only (no pricing/scoring)."""
+    return {
+        "card_name":        identity.name,
+        "card_number":      identity.number,
+        "language":         identity.language,
+        "set_name":         identity.set_name or "",
+        "rarity":           identity.rarity or "",
+        "overall_score":    condition.overall_score,
+        "estimated_value":  None,
+        "value_range_low":  None,
+        "value_range_high": None,
+        "confidence":       condition.confidence,
+        "scanned_at":       scanned_at or datetime.utcnow().isoformat(),
+        "report":           None,
+        "_identity":        identity,
+        "_condition":       condition,
     }
 
 
@@ -211,9 +233,10 @@ def page_accueil() -> None:
                     ts = entry["scanned_at"][:10] if entry.get("scanned_at") else "—"
                     with st.container(border=True):
                         st.markdown(f"**{entry['card_name']}** {flag}")
-                        st.caption(f"{entry['card_number']} · {entry['set_name'] or '—'}")
+                        st.caption(f"{entry['card_number']} · {entry.get('set_name') or '—'}")
                         st.write(f"{score_color(score)} {score:.1f}/10")
-                        st.write(f"~{entry['estimated_value']:.0f} €")
+                        val = entry.get("estimated_value")
+                        st.write(f"~{val:.0f} €" if val is not None else "Prix N/A")
                         st.caption(ts)
 
     # Sell section
@@ -390,7 +413,7 @@ def page_scanner() -> None:
                 except Exception as e:
                     st.error(f"Grading échoué : {e}")
 
-            if identity and tcgdex_card and not pricing_unavailable:
+            if identity and condition and not pricing_unavailable and tcgdex_card:
                 st.write("💰 Recherche des prix…")
                 try:
                     rapidapi_key = os.environ.get("RAPIDAPI_KEY")
@@ -403,6 +426,8 @@ def page_scanner() -> None:
                 except Exception as e:
                     st.warning(f"⚠️ Récupération des prix échouée : {e}")
                     pricing_unavailable = True
+            elif identity and condition and pricing_unavailable:
+                st.warning("⚠️ Prix indisponibles — TCGdex introuvable. L'état et l'identité restent disponibles.")
 
             if identity and condition and pricing:
                 st.write("📊 Calcul du score final…")
@@ -420,11 +445,15 @@ def page_scanner() -> None:
 
             status.update(label="Analyse terminée ✅", state="complete", expanded=False)
 
-        # Store report and add to scan history
-        if report:
-            entry = _report_to_entry(report)
+        # Save to scan history whenever we have at minimum identity + condition
+        if identity and condition:
+            try:
+                entry = _report_to_entry(report) if report else _partial_entry(identity, condition)
+            except Exception:
+                entry = _partial_entry(identity, condition)
             st.session_state["current_report"] = entry
             st.session_state["scan_history"].append(entry)
+            st.success("✅ Scan sauvegardé dans l'historique")
 
         # Cleanup temp files
         for path in (front_path, back_path):
@@ -435,18 +464,20 @@ def page_scanner() -> None:
                     pass
 
     # ── Display report ─────────────────────────────────────────────────────
-    entry  = st.session_state.get("current_report")
-    report = entry["report"] if entry and entry.get("report") else None
-
-    if report:
-        _render_report(report, entry, front_image)
+    entry = st.session_state.get("current_report")
+    if entry:
+        _render_report(entry, front_image)
 
 
-def _render_report(report, entry: dict, front_image) -> None:
-    """Render identity / condition / pricing sections for a CardReport."""
-    identity  = report.identity
-    condition = report.condition
-    pricing   = report.pricing
+def _render_report(entry: dict, front_image=None) -> None:
+    """Render identity / condition / pricing sections from a session_state entry."""
+    report    = entry.get("report")
+    identity  = report.identity  if report else entry.get("_identity")
+    condition = report.condition if report else entry.get("_condition")
+    pricing   = report.pricing   if report else None
+
+    if not identity or not condition:
+        return
 
     st.divider()
 
@@ -458,7 +489,7 @@ def _render_report(report, entry: dict, front_image) -> None:
             st.image(front_image, width=200)
     with id_info_col:
         flag = LANGUAGE_FLAGS.get(identity.language, "")
-        st.header(f"{identity.name}")
+        st.header(identity.name)
         st.write(f"**Numéro :** {identity.number}")
         st.write(f"**Set :** {identity.set_name or '—'}")
         st.write(f"**Langue :** {flag} {identity.language}")
@@ -471,6 +502,7 @@ def _render_report(report, entry: dict, front_image) -> None:
     st.subheader("🔬 État de la carte")
     score = condition.overall_score
     st.metric(label=f"Score global {score_color(score)}", value=f"{score:.1f} / 10")
+
     prog_col1, prog_col2 = st.columns(2)
     sub_scores = [
         ("🎯 Centrage", condition.centering,  "centering 15%"),
@@ -484,49 +516,56 @@ def _render_report(report, entry: dict, front_image) -> None:
             st.write(f"**{label}** — {score_val:.1f}/10")
             st.progress(score_val / 10)
             st.caption(weight)
+
     with st.expander("Voir les détails de l'évaluation"):
         for label, score_val, _ in sub_scores:
             st.write(f"- **{label.split(' ', 1)[1]} :** {score_val:.1f}/10")
         st.write(f"- **Score composite :** {condition.overall_score:.1f}/10")
+        if hasattr(condition, "details") and condition.details:
+            st.write(condition.details)
         st.caption("Pondérations PSA : corners 30%, surface 30%, edges 25%, centering 15%")
 
     # Section 3 — Pricing
     st.divider()
     st.subheader("💰 Estimation de valeur")
-    curr = pricing.currency
-    p1, p2, p3 = st.columns(3)
-    with p1:
-        st.metric("Prix référence (NM)", f"{pricing.raw_price:.2f} {curr}")
-    with p2:
-        st.metric(
-            "Estimation selon état",
-            f"{report.estimated_value:.2f} {curr}",
-            delta=f"{report.value_range_low:.2f} — {report.value_range_high:.2f} {curr}",
-            delta_color="off",
-        )
-    with p3:
-        st.metric("Confiance", f"{int(report.confidence_score * 100)} %")
-    st.caption(f"Source : {pricing.source_detail}")
-    if not pricing.language_specific:
-        lang_name = LANGUAGE_FLAGS.get(identity.language, "") + " " + identity.language
-        st.warning(
-            f"⚠️ Prix basé sur le marché global CardMarket. "
-            f"Le prix spécifique pour les cartes {lang_name.strip()} peut varier significativement."
-        )
-    grade_rows = {
-        "PSA 10": pricing.grade_10, "PSA 9": pricing.grade_9,
-        "PSA 7": pricing.grade_7, "PSA 5": pricing.grade_5, "PSA 3": pricing.grade_3,
-    }
-    available_grades = {k: v for k, v in grade_rows.items() if v is not None}
-    if available_grades:
-        st.write("**Prix par grade PSA :**")
-        import pandas as pd
-        df = pd.DataFrame(
-            [{"Grade": k, f"Prix ({curr})": f"{v:.2f}"} for k, v in available_grades.items()]
-        )
-        st.dataframe(df, hide_index=True, use_container_width=False)
 
-    # Add to collection button
+    if pricing is None:
+        st.warning("⚠️ Prix indisponibles — carte introuvable dans TCGdex ou résolution échouée.")
+    else:
+        curr = pricing.currency
+        p1, p2, p3 = st.columns(3)
+        with p1:
+            st.metric("Prix référence (NM)", f"{pricing.raw_price:.2f} {curr}")
+        with p2:
+            st.metric(
+                "Estimation selon état",
+                f"{report.estimated_value:.2f} {curr}",
+                delta=f"{report.value_range_low:.2f} — {report.value_range_high:.2f} {curr}",
+                delta_color="off",
+            )
+        with p3:
+            st.metric("Confiance", f"{int(report.confidence_score * 100)} %")
+        st.caption(f"Source : {pricing.source_detail}")
+        if not pricing.language_specific:
+            lang_name = LANGUAGE_FLAGS.get(identity.language, "") + " " + identity.language
+            st.warning(
+                f"⚠️ Prix basé sur le marché global CardMarket. "
+                f"Le prix spécifique pour les cartes {lang_name.strip()} peut varier significativement."
+            )
+        grade_rows = {
+            "PSA 10": pricing.grade_10, "PSA 9": pricing.grade_9,
+            "PSA 7": pricing.grade_7, "PSA 5": pricing.grade_5, "PSA 3": pricing.grade_3,
+        }
+        available_grades = {k: v for k, v in grade_rows.items() if v is not None}
+        if available_grades:
+            st.write("**Prix par grade PSA :**")
+            import pandas as pd
+            df = pd.DataFrame(
+                [{"Grade": k, f"Prix ({curr})": f"{v:.2f}"} for k, v in available_grades.items()]
+            )
+            st.dataframe(df, hide_index=True, use_container_width=False)
+
+    # Add to collection
     st.divider()
     already_in = _collection_contains(entry)
     if already_in:
@@ -537,34 +576,35 @@ def _render_report(report, entry: dict, front_image) -> None:
             st.success("Carte ajoutée à votre collection !")
             st.rerun()
 
-    # Section 4 — Sell
-    st.divider()
-    st.header("🛒 Vendre cette carte")
-    sell_col1, sell_col2 = st.columns([2, 1])
-    with sell_col1:
-        selected_platform = st.selectbox(
-            "Plateforme de vente",
-            options=list(PLATFORM_LABELS.keys()),
-            format_func=lambda k: PLATFORM_LABELS[k],
-        )
-    with sell_col2:
-        selected_lang = st.selectbox("Langue de l'annonce", ["fr", "en"])
+    # Section 4 — Sell (only available with full report for ListingGenerator)
+    if report is not None:
+        st.divider()
+        st.header("🛒 Vendre cette carte")
+        sell_col1, sell_col2 = st.columns([2, 1])
+        with sell_col1:
+            selected_platform = st.selectbox(
+                "Plateforme de vente",
+                options=list(PLATFORM_LABELS.keys()),
+                format_func=lambda k: PLATFORM_LABELS[k],
+            )
+        with sell_col2:
+            selected_lang = st.selectbox("Langue de l'annonce", ["fr", "en"])
 
-    listing_cache_key = f"listing_{selected_platform}_{selected_lang}"
-    cached_listing = st.session_state.get(listing_cache_key)
+        listing_cache_key = f"listing_{selected_platform}_{selected_lang}"
+        cached_listing = st.session_state.get(listing_cache_key)
 
-    if st.button("✍️ Générer l'annonce", type="primary", disabled=cached_listing is not None):
-        from src.agents.listing_generator import ListingGenerator
-        with st.spinner("Génération de l'annonce en cours…"):
-            try:
-                listing = ListingGenerator(api_key=api_key).generate(report, selected_platform, selected_lang)
-                st.session_state[listing_cache_key] = listing
-                cached_listing = listing
-            except Exception as e:
-                st.error(f"Erreur lors de la génération : {e}")
+        if st.button("✍️ Générer l'annonce", type="primary", disabled=cached_listing is not None):
+            from src.agents.listing_generator import ListingGenerator
+            with st.spinner("Génération de l'annonce en cours…"):
+                try:
+                    listing = ListingGenerator(api_key=api_key).generate(report, selected_platform, selected_lang)
+                    st.session_state[listing_cache_key] = listing
+                    cached_listing = listing
+                except Exception as e:
+                    st.error(f"Erreur lors de la génération : {e}")
 
-    if cached_listing:
-        _render_listing(cached_listing, selected_platform)
+        if cached_listing:
+            _render_listing(cached_listing, selected_platform)
 
 
 def _render_listing(listing: dict, platform: str) -> None:
@@ -630,9 +670,9 @@ def page_collection() -> None:
     )
 
     sort_key_map = {
-        "Date d'ajout":    lambda e: e.get("scanned_at", ""),
-        "Valeur estimée":  lambda e: e.get("estimated_value", 0),
-        "Score d'état":    lambda e: e.get("overall_score", 0),
+        "Date d'ajout":    lambda e: e.get("scanned_at") or "",
+        "Valeur estimée":  lambda e: e.get("estimated_value") or 0,
+        "Score d'état":    lambda e: e.get("overall_score") or 0,
     }
     sorted_collection = sorted(collection, key=sort_key_map[sort_by], reverse=True)
 
@@ -651,7 +691,8 @@ def page_collection() -> None:
                     st.markdown(f"**{entry['card_name']}** {flag}")
                     st.caption(f"{entry['card_number']} · {entry.get('set_name') or '—'}")
                     st.write(f"{score_color(score)} {score:.1f}/10")
-                    st.metric("Valeur", f"{entry['estimated_value']:.0f} €", label_visibility="collapsed")
+                    val = entry.get("estimated_value")
+                    st.metric("Valeur", f"{val:.0f} €" if val is not None else "N/A", label_visibility="collapsed")
 
                     btn_col1, btn_col2 = st.columns(2)
                     with btn_col1:
