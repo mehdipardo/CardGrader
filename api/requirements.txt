@@ -2,7 +2,6 @@ anthropic
 httpx
 python-dotenv
 Pillow
-streamlit
 fastapi
 uvicorn[standard]
 python-multipart

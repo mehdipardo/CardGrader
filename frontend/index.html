@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#1a1b20"/>
+  <title>PokéGrader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body, #root { height: 100%; }
+    body {
+      background: oklch(0.165 0.012 260);
+      font-family: 'Geist', -apple-system, system-ui, sans-serif;
+      overscroll-behavior: none;
+    }
+    #root {
+      display: flex; flex-direction: column;
+      max-width: 430px; margin: 0 auto;
+      height: 100%; min-height: 100dvh;
+      position: relative; overflow: hidden;
+    }
+    @keyframes pgFade { from { opacity:0 } to { opacity:1 } }
+    @keyframes pgRise { from { transform:translateY(40px); opacity:0 } to { transform:translateY(0); opacity:1 } }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    button { font-family: inherit; -webkit-appearance: none; }
+    input, textarea { font-family: inherit; }
+    ::-webkit-scrollbar { display: none; }
+    scrollbar-width: none;
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+/* ── Config ───────────────────────────────────────────────────────────── */
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : '';
+
+async function apiFetch(path, opts = {}, token = null) {
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API_BASE + path, { ...opts, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/* Resize + compress to JPEG before upload — avoids HTTP 413 on Vercel (4.5 MB limit) */
+async function compressImage(file, maxDim = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else                 { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Compression échouée')); return; }
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function compressImageToBlob(file, maxDim = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else                 { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Compression échouée')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+const LANG_FLAGS = { FR:'🇫🇷', EN:'🇬🇧', JP:'🇯🇵', DE:'🇩🇪', IT:'🇮🇹', ES:'🇪🇸', KO:'🇰🇷', PT:'🇵🇹' };
+const LANG_FROM_CODE = { fr:'FR', en:'EN', ja:'JP', de:'DE', it:'IT', es:'ES', ko:'KO', pt:'PT' };
+const TCGDEX_LANG = { FR:'fr', EN:'en', JP:'ja', DE:'de', IT:'it', ES:'es', KO:'ko', PT:'pt' };
+
+/* ── Design Tokens ────────────────────────────────────────────────────── */
+const THEMES = {
+  light: {
+    bg: 'oklch(0.972 0.004 80)', surface: '#ffffff', surface2: 'oklch(0.985 0.003 80)',
+    text: 'oklch(0.18 0.012 80)', muted: 'oklch(0.50 0.010 80)', faint: 'oklch(0.66 0.008 80)',
+    border: 'oklch(0.91 0.004 80)', borderS: 'oklch(0.94 0.003 80)', chipBg: 'oklch(0.95 0.005 80)',
+    overlay: 'rgba(20,18,15,0.45)',
+    elev1: '0 1px 2px rgba(20,18,15,0.04), 0 1px 1px rgba(20,18,15,0.03)',
+    elev2: '0 1px 3px rgba(20,18,15,0.05), 0 12px 32px rgba(20,18,15,0.06)',
+    elev3: '0 24px 60px rgba(20,18,15,0.18)',
+  },
+  dark: {
+    bg: 'oklch(0.165 0.012 260)', surface: 'oklch(0.213 0.013 260)', surface2: 'oklch(0.245 0.014 260)',
+    text: 'oklch(0.972 0.004 260)', muted: 'oklch(0.68 0.010 260)', faint: 'oklch(0.52 0.010 260)',
+    border: 'oklch(0.295 0.014 260)', borderS: 'oklch(0.255 0.013 260)', chipBg: 'oklch(0.245 0.014 260)',
+    overlay: 'rgba(0,0,0,0.55)',
+    elev1: '0 1px 2px rgba(0,0,0,0.4)',
+    elev2: '0 2px 6px rgba(0,0,0,0.4), 0 16px 40px rgba(0,0,0,0.35)',
+    elev3: '0 24px 60px rgba(0,0,0,0.55)',
+  },
+};
+
+const ACCENTS = { Gold: '#d4af37', Sapphire: '#5b9eff', Ruby: '#e0526b', Emerald: '#48c08c' };
+
+const GRADE = { good: '#3ea872', mid: '#d99036', bad: '#c8434f' };
+function gradeColor(s) { return s >= 8 ? GRADE.good : s >= 5 ? GRADE.mid : GRADE.bad; }
+function gradeLabel(s) { return s >= 8 ? 'Excellent' : s >= 5 ? 'Correct' : 'Endommagé'; }
+
+const CARD_TYPES = {
+  water:    { a: '#5cb6ff', b: '#1a3f8c' },
+  fire:     { a: '#ff8b4d', b: '#8a1a14' },
+  electric: { a: '#ffd649', b: '#9a6b00' },
+  grass:    { a: '#9bd06a', b: '#2f6a1f' },
+  rock:     { a: '#c8b489', b: '#534225' },
+  shadow:   { a: '#9a87c8', b: '#34204e' },
+};
+
+const PLATFORMS = [
+  { id: 'vinted',    name: 'Vinted',         tone: 'décontracté', color: '#09b1ba', url: 'https://www.vinted.fr/items/new' },
+  { id: 'ebay',      name: 'eBay',           tone: 'formel',      color: '#e53238', url: 'https://www.ebay.fr/sell/create' },
+  { id: 'leboncoin', name: 'LeBonCoin',      tone: 'factuel',     color: '#ff6e14', url: 'https://www.leboncoin.fr/deposer-une-annonce' },
+  { id: 'facebook',  name: 'FB Marketplace', tone: 'social',      color: '#0866ff', url: 'https://www.facebook.com/marketplace/create/item' },
+  { id: 'cardmarket',name: 'CardMarket',     tone: 'expert',      color: '#012169', url: 'https://www.cardmarket.com/fr/Pokemon/PostProduct' },
+];
+
+/* ── Icons ────────────────────────────────────────────────────────────── */
+const Icon = {
+  home:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinejoin="round"/></svg>,
+  scan:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3M3 12h18" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  stack:  p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="11" height="15" rx="1.5" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M9 5V3.5h11V19" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  cam:    p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M8 7l1.5-3h5L16 7" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinejoin="round"/><circle cx="12" cy="14" r="3.2" stroke={p.color||'currentColor'} strokeWidth="1.6"/></svg>,
+  upload: p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  chev:   p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke={p.color||'currentColor'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  back:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke={p.color||'currentColor'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  close:  p => <svg width={p.size||18} height={p.size||18} viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke={p.color||'currentColor'} strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  sort:   p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><path d="M7 5v14m0 0l-3-3m3 3l3-3M17 19V5m0 0l-3 3m3-3l3 3" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  spark:  p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><path d="M12 3l1.7 4.8L18.5 9l-4.8 1.2L12 15l-1.7-4.8L5.5 9l4.8-1.2z" fill={p.color||'currentColor'}/></svg>,
+  check:  p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke={p.color||'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  info:   p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M12 11v6M12 7.5v.2" stroke={p.color||'currentColor'} strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  trash:  p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  copy:   p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" stroke={p.color||'currentColor'} strokeWidth="1.6"/></svg>,
+  ext:    p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><path d="M14 4h6v6M20 4l-9 9M10 6H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  plus:   p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke={p.color||'currentColor'} strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  euro:   p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><path d="M17 6.5A6 6 0 0 0 7 12a6 6 0 0 0 10 5.5M4 10h9M4 14h9" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  user:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  gear:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke={p.color||'currentColor'} strokeWidth="1.6"/></svg>,
+};
+
+/* ── Logo ─────────────────────────────────────────────────────────────── */
+function Logo({ color = 'currentColor', size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M5 3.5h10.5L20 8v12.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
+            stroke={color} strokeWidth="1.6" strokeLinejoin="round"/>
+      <path d="M15.5 3.5V8H20" stroke={color} strokeWidth="1.6" strokeLinejoin="round"/>
+      <path d="M7.5 14.5l2.4 2.4 5-5" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+/* ── CardArt (abstract SVG placeholder) ───────────────────────────────── */
+function CardArt({ card, w = 100, radius = 0.06 }) {
+  const h = Math.round(w * 7 / 5);
+  const t = CARD_TYPES[card.type] || CARD_TYPES.water;
+  const r = w * radius;
+  const uid = `${card.id || 'x'}-${w}`;
+  return (
+    <svg width={w} height={h} viewBox="0 0 100 140" style={{ display:'block', borderRadius: r }}>
+      <defs>
+        <linearGradient id={`bg-${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={t.a}/><stop offset="1" stopColor={t.b}/>
+        </linearGradient>
+        <radialGradient id={`glow-${uid}`} cx="0.7" cy="0.3" r="0.7">
+          <stop offset="0" stopColor="rgba(255,255,255,0.55)"/>
+          <stop offset="1" stopColor="rgba(255,255,255,0)"/>
+        </radialGradient>
+      </defs>
+      <rect width="100" height="140" fill={`url(#bg-${uid})`}/>
+      <circle cx="78" cy="34" r="38" fill={`url(#glow-${uid})`}/>
+      <circle cx="22" cy="112" r="22" fill="rgba(0,0,0,0.22)"/>
+      <path d="M0 140 L100 80 L100 140 Z" fill="rgba(0,0,0,0.18)"/>
+      <text x="50" y="92" textAnchor="middle"
+            fontFamily="'Geist', system-ui" fontWeight="800" fontSize="76"
+            fill="rgba(255,255,255,0.95)" style={{ letterSpacing:'-0.06em' }}>
+        {(card.monogram || (card.name||'?')[0]).toUpperCase()}
+      </text>
+      <rect x="0.5" y="0.5" width="99" height="139" rx="6" fill="none" stroke="rgba(0,0,0,0.18)"/>
+    </svg>
+  );
+}
+
+/* ── TCGdex Card Image (with CardArt fallback) ────────────────────────── */
+function CardImg({ imageUrl, card, w = 100, radius = 0.06 }) {
+  const h = Math.round(w * 7 / 5);
+  const r = w * radius;
+  const [err, setErr] = React.useState(false);
+  if (imageUrl && !err) {
+    return (
+      <img
+        src={imageUrl + '/high.webp'}
+        width={w} height={h}
+        onError={() => setErr(true)}
+        style={{ display:'block', width: w, height: h, objectFit:'cover', borderRadius: r }}
+      />
+    );
+  }
+  return <CardArt card={card || { type:'water', monogram:'?' }} w={w} radius={radius}/>;
+}
+
+/* ── ScoreRing ────────────────────────────────────────────────────────── */
+function ScoreRing({ value, size = 96, stroke = 8 }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c - (value / 10) * c;
+  const color = gradeColor(value);
+  return (
+    <div style={{ position:'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size/2} cy={size/2} r={r} stroke="currentColor" strokeOpacity="0.12" strokeWidth={stroke} fill="none"/>
+        <circle cx={size/2} cy={size/2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+                strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off}
+                transform={`rotate(-90 ${size/2} ${size/2})`}/>
+      </svg>
+      <div style={{
+        position:'absolute', inset:0, display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center', lineHeight:1,
+      }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontWeight:700, fontSize:size*0.34, letterSpacing:'-0.04em', color }}>
+          {value.toFixed(1)}
+        </div>
+        <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:size*0.11, opacity:0.55, marginTop:2, letterSpacing:'0.08em' }}>
+          / 10
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ScoreBar ─────────────────────────────────────────────────────────── */
+function ScoreBar({ label, value, weight, theme }) {
+  const color = gradeColor(value);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+        <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+          <span style={{ fontSize:13, fontWeight:500, color:theme.text }}>{label}</span>
+          <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted }}>{weight}%</span>
+        </div>
+        <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:13, color, fontWeight:600 }}>
+          {value.toFixed(1)}
+        </span>
+      </div>
+      <div style={{ height:6, background:theme.chipBg, borderRadius:99, overflow:'hidden', position:'relative' }}>
+        <div style={{ height:'100%', width:`${(value/10)*100}%`, background:color, borderRadius:99 }}/>
+        {[2,4,6,8].map(n => (
+          <div key={n} style={{ position:'absolute', left:`${n*10}%`, top:0, bottom:0, width:1, background:'rgba(0,0,0,0.07)' }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Chip ─────────────────────────────────────────────────────────────── */
+function Chip({ children, theme, tone = 'neutral', accentColor }) {
+  const bg  = tone === 'accent' ? `${accentColor||theme.text}18`
+            : tone === 'good'   ? `${GRADE.good}22`
+            : tone === 'bad'    ? `${GRADE.bad}22`
+            : tone === 'mid'    ? `${GRADE.mid}22`
+            :                     theme.chipBg;
+  const fg  = tone === 'accent' ? accentColor||theme.text
+            : tone === 'good'   ? GRADE.good
+            : tone === 'bad'    ? GRADE.bad
+            : tone === 'mid'    ? GRADE.mid
+            :                     theme.muted;
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap:5,
+      padding:'3px 8px', borderRadius:99, background:bg, color:fg,
+      fontFamily:"'Geist Mono', ui-monospace, monospace",
+      fontSize:11, fontWeight:500, letterSpacing:'0.02em', whiteSpace:'nowrap',
+    }}>{children}</span>
+  );
+}
+
+/* ── StatTile ─────────────────────────────────────────────────────────── */
+function StatTile({ label, value, sub, theme }) {
+  return (
+    <div style={{
+      flex:1, padding:'14px 12px', borderRadius:14,
+      background:theme.surface, border:`1px solid ${theme.borderS}`,
+      display:'flex', flexDirection:'column', gap:4,
+    }}>
+      <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase' }}>{label}</div>
+      <div style={{ fontFamily:"'Geist', system-ui", fontSize:20, fontWeight:600, color:theme.text, letterSpacing:'-0.02em' }}>{value}</div>
+      {sub && <div style={{ fontSize:11, color:theme.muted }}>{sub}</div>}
+    </div>
+  );
+}
+
+/* ── SectionHead ──────────────────────────────────────────────────────── */
+function SectionHead({ theme, title, action }) {
+  return (
+    <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between' }}>
+      <h2 style={{ margin:0, fontFamily:"'Geist', system-ui", fontSize:14.5, fontWeight:600, letterSpacing:'-0.01em', color:theme.text }}>{title}</h2>
+      {action && <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, letterSpacing:'0.08em', color:theme.muted, textTransform:'uppercase' }}>{action}</span>}
+    </div>
+  );
+}
+
+/* ── Spinner ──────────────────────────────────────────────────────────── */
+function Spinner({ size = 24, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         style={{ animation:'spin 0.8s linear infinite' }}>
+      <circle cx="12" cy="12" r="9" stroke={color} strokeOpacity="0.2" strokeWidth="2.5"/>
+      <path d="M12 3a9 9 0 0 1 9 9" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+/* ── TopBar ───────────────────────────────────────────────────────────── */
+function TopBar({ theme, accent, onSettings, authUser }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px 12px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{ width:32, height:32, borderRadius:9, background:theme.text, color:theme.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <Logo size={18} color={theme.bg}/>
+        </div>
+        <div style={{ lineHeight:1.1 }}>
+          <div style={{ fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:17, letterSpacing:'-0.02em', color:theme.text, display:'flex', alignItems:'center', gap:7 }}>
+            PokéGrader
+            <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, padding:'2px 6px', borderRadius:4, letterSpacing:'0.1em', background:`${accent}1f`, color:accent, fontWeight:600 }}>BETA</span>
+          </div>
+          <div style={{ fontSize:11, color:theme.muted, marginTop:1 }}>Évaluation TCG · prix CardMarket</div>
+        </div>
+      </div>
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        {authUser && (
+          <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:11, color:theme.muted, padding:'3px 8px', borderRadius:7, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+            @{authUser.pseudo}
+          </div>
+        )}
+        <button onClick={onSettings} style={{ width:36, height:36, borderRadius:99, background:theme.surface, border:`1px solid ${theme.border}`, color:theme.text, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+          <Icon.gear size={18} color={theme.muted}/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── ScanHeader ───────────────────────────────────────────────────────── */
+function ScanHeader({ theme, step, back }) {
+  const labels = ['Upload', 'Identification', 'Rapport'];
+  return (
+    <div style={{ padding:'8px 16px 14px' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', height:36 }}>
+        <button onClick={back} style={{ width:36, height:36, border:`1px solid ${theme.border}`, borderRadius:99, background:theme.surface, color:theme.text, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <Icon.back size={18}/>
+        </button>
+        <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, letterSpacing:'0.12em', color:theme.muted, textTransform:'uppercase' }}>
+          Étape {step} / 3
+        </div>
+        <div style={{ width:36 }}/>
+      </div>
+      <div style={{ display:'flex', gap:4, marginTop:12 }}>
+        {labels.map((l, i) => (
+          <div key={i} style={{ flex:1, height:3, borderRadius:2, background:i < step ? theme.text : theme.chipBg }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── SettingsSheet ────────────────────────────────────────────────────── */
+function SettingsSheet({ theme, accent, dark, onDark, onAccent, onClose }) {
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, padding:'12px 20px 40px', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+          <div style={{ width:36, height:4, borderRadius:99, background:theme.border }}/>
+        </div>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:16, fontWeight:600, color:theme.text, marginBottom:20 }}>Apparence</div>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+          <span style={{ fontSize:14, color:theme.text }}>Mode sombre</span>
+          <button onClick={() => onDark(!dark)} style={{
+            width:48, height:28, borderRadius:99, border:'none', cursor:'pointer',
+            background: dark ? accent : theme.border,
+            position:'relative', transition:'background .2s',
+          }}>
+            <div style={{
+              position:'absolute', top:3, left: dark ? 23 : 3,
+              width:22, height:22, borderRadius:99, background:'#fff',
+              transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
+            }}/>
+          </button>
+        </div>
+        <div style={{ fontSize:12, color:theme.muted, marginBottom:10, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Couleur d'accent</div>
+        <div style={{ display:'flex', gap:10 }}>
+          {Object.entries(ACCENTS).map(([name, color]) => (
+            <button key={name} onClick={() => onAccent(name)} style={{
+              width:40, height:40, borderRadius:99, border: accent === color ? `2px solid ${theme.text}` : '2px solid transparent',
+              background:color, cursor:'pointer',
+              boxShadow: accent === color ? `0 0 0 3px ${theme.bg}, 0 0 0 5px ${color}` : 'none',
+            }}/>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── DASHBOARD ────────────────────────────────────────────────────────── */
+function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAuth, onLogout }) {
+  const recent = collection.slice(-5).reverse();
+  const total = collection.reduce((s, item) => {
+    const v = item.report?.valuation?.estimated_value || 0;
+    return s + v;
+  }, 0);
+
+  return (
+    <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
+      {/* HERO CTA */}
+      <div style={{ padding:'0 16px' }}>
+        <div style={{
+          borderRadius:20, overflow:'hidden', position:'relative',
+          background:`linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 60%, #000))`,
+          color:'#fff', padding:'20px 18px 18px', boxShadow:theme.elev2,
+        }}>
+          <svg width="120" height="170" viewBox="0 0 120 170" style={{ position:'absolute', right:-28, top:-10, opacity:0.18 }}>
+            <rect x="20" y="22" width="76" height="106" rx="6" fill="none" stroke="#fff" strokeWidth="1.5" transform="rotate(-8 58 75)"/>
+            <rect x="20" y="22" width="76" height="106" rx="6" fill="none" stroke="#fff" strokeWidth="1.5" transform="rotate(10 58 75)"/>
+          </svg>
+          <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, letterSpacing:'0.14em', opacity:0.85 }}>SCANNER UNE CARTE</div>
+          <div style={{ fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:23, letterSpacing:'-0.03em', marginTop:4, lineHeight:1.15, maxWidth:240 }}>
+            Évaluez l'état<br/>et estimez la valeur.
+          </div>
+          <div style={{ display:'flex', gap:8, marginTop:16 }}>
+            <button onClick={() => goTo('scan-upload', { mode:'camera' })} style={{
+              flex:1, height:44, border:'none', borderRadius:12,
+              background:'rgba(255,255,255,0.96)', color:'#1c1a18',
+              fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:14,
+              display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer',
+            }}>
+              <Icon.cam size={18}/> Photo
+            </button>
+            <button onClick={() => goTo('scan-upload', { mode:'upload' })} style={{
+              flex:1, height:44, border:'1px solid rgba(255,255,255,0.5)', borderRadius:12,
+              background:'transparent', color:'#fff',
+              fontFamily:"'Geist', system-ui", fontWeight:500, fontSize:14,
+              display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer',
+            }}>
+              <Icon.upload size={18}/> Importer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* STATS */}
+      <div style={{ display:'flex', gap:8, padding:'14px 16px 4px' }}>
+        <StatTile theme={theme} label="Cartes"       value={collection.length} sub="dans ma collection"/>
+        <StatTile theme={theme} label="Valeur"       value={`€ ${Math.round(total)}`} sub="estimation actuelle"/>
+      </div>
+
+      {/* RECENT SCANS */}
+      {recent.length > 0 && (
+        <>
+          <div style={{ padding:'18px 16px 6px' }}>
+            <SectionHead theme={theme} title="Derniers scans" action=""/>
+          </div>
+          <div style={{ display:'flex', gap:10, padding:'0 16px 4px', overflowX:'auto', scrollbarWidth:'none' }}>
+            {recent.map(item => {
+              const r = item.report;
+              const id = item.identity || r?.identity || {};
+              const score = r?.condition?.overall_score || 0;
+              const est = r?.valuation?.estimated_value || 0;
+              const imgUrl = id.image || r?.identity?.image;
+              return (
+                <button key={item.id} onClick={() => goTo('scan-report', { collectionItem: item })} style={{
+                  flex:'0 0 132px', textAlign:'left', cursor:'pointer',
+                  border:`1px solid ${theme.borderS}`, borderRadius:14,
+                  background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:8,
+                }}>
+                  <CardImg imageUrl={imgUrl} card={{ type:'water', monogram:(id.name||'?')[0] }} w={116} radius={0.05}/>
+                  <div style={{ padding:'2px 2px 4px' }}>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {id.name}
+                    </div>
+                    <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted, display:'flex', alignItems:'center', gap:5, marginTop:2 }}>
+                      <span>{id.number}</span><span>·</span>
+                      <span>{LANG_FLAGS[id.language] || id.language}</span>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginTop:6 }}>
+                      <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:13, color:gradeColor(score), fontWeight:600 }}>{score.toFixed(1)}</span>
+                      <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:11, color:theme.text, fontWeight:500 }}>€{Math.round(est)}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* SELL CTA */}
+      <div style={{ padding:'20px 16px 6px' }}>
+        <SectionHead theme={theme} title="Vendre une carte" action=""/>
+        <div style={{
+          marginTop:10, padding:'14px', borderRadius:16,
+          border:`1px solid ${theme.borderS}`, background:theme.surface,
+          display:'flex', alignItems:'center', gap:12,
+        }}>
+          <div style={{ width:44, height:44, borderRadius:12, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center', color:accent }}>
+            <Icon.euro size={20}/>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13.5, fontWeight:500, color:theme.text, letterSpacing:'-0.01em' }}>Générer une annonce IA</div>
+            <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Vinted · eBay · LeBonCoin · CardMarket</div>
+          </div>
+          {collection.length > 0 ? (
+            <button onClick={() => openSell(collection[collection.length - 1])} style={{
+              height:32, padding:'0 14px', borderRadius:99, border:'none',
+              background:theme.text, color:theme.bg, cursor:'pointer',
+              fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600,
+              display:'flex', alignItems:'center', gap:4,
+            }}>Choisir <Icon.chev size={14}/></button>
+          ) : (
+            <button onClick={() => goTo('scan-upload')} style={{
+              height:32, padding:'0 14px', borderRadius:99, border:'none',
+              background:theme.text, color:theme.bg, cursor:'pointer',
+              fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600,
+            }}>Scanner</button>
+          )}
+        </div>
+      </div>
+
+      {/* ACCOUNT CTA */}
+      <div style={{ padding:'20px 16px 24px' }}>
+        <SectionHead theme={theme} title={authUser ? "Mon compte" : "Compte"} action=""/>
+        <div style={{
+          marginTop:10, padding:'14px', borderRadius:16,
+          border:`1px solid ${theme.borderS}`, background:theme.surface,
+          display:'flex', alignItems:'center', gap:12,
+        }}>
+          <div style={{ width:44, height:44, borderRadius:12, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center', color:accent }}>
+            <Icon.user size={20}/>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            {authUser ? (
+              <>
+                <div style={{ fontSize:13.5, fontWeight:500, color:theme.text, letterSpacing:'-0.01em' }}>@{authUser.pseudo}</div>
+                <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Collection synchronisée · cloud</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:13.5, fontWeight:500, color:theme.text, letterSpacing:'-0.01em' }}>Sauvegarde ta collection</div>
+                <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Profil · historique · multi-appareils</div>
+              </>
+            )}
+          </div>
+          {authUser ? (
+            <button onClick={onLogout} style={{
+              height:32, padding:'0 12px', borderRadius:99,
+              border:`1px solid ${theme.border}`,
+              background:'transparent', color:theme.muted, cursor:'pointer',
+              fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:500,
+            }}>Déconnecter</button>
+          ) : (
+            <button onClick={openAuth} style={{
+              height:32, padding:'0 14px', borderRadius:99, border:'none',
+              background:theme.text, color:theme.bg, cursor:'pointer',
+              fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600,
+              display:'flex', alignItems:'center', gap:4,
+            }}>Rejoindre <Icon.chev size={14}/></button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ScanUpload ───────────────────────────────────────────────────────── */
+function ScanUpload({ theme, accent, back, mode, onAnalyze }) {
+  const frontRef = React.useRef(null);
+  const backRef  = React.useRef(null);
+  const [frontFile, setFrontFile]     = React.useState(null);
+  const [backFile,  setBackFile]      = React.useState(null);
+  const [frontPreview, setFrontPrev]  = React.useState(null);
+  const [backPreview,  setBackPrev]   = React.useState(null);
+  const [loading, setLoading]         = React.useState(false);
+  const [error, setError]             = React.useState(null);
+  const [curMode, setCurMode]         = React.useState(mode || 'upload');
+
+  const accept = 'image/*';
+  const capture = curMode === 'camera' ? 'environment' : undefined;
+
+  const handleFile = (file, which) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (which === 'front') { setFrontFile(file); setFrontPrev(e.target.result); }
+      else                   { setBackFile(file);  setBackPrev(e.target.result); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyze = async () => {
+    if (!frontFile) return;
+    setLoading(true); setError(null);
+    try {
+      const blob = await compressImageToBlob(frontFile);
+      const fd = new FormData();
+      fd.append('front', blob, 'front.jpg');
+      const identity = await apiFetch('/api/identify', { method:'POST', body:fd });
+      onAnalyze({ identity, frontFile, backFile });
+    } catch (e) {
+      setError(e.message || "Erreur lors de l'identification.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ paddingBottom:110, overflowY:'auto', height:'100%' }}>
+      <ScanHeader theme={theme} step={1} back={back}/>
+      <div style={{ padding:'4px 16px 0' }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:22, fontWeight:600, letterSpacing:'-0.025em', color:theme.text, marginTop:4, lineHeight:1.2 }}>
+          Prenez en photo<br/>votre carte.
+        </div>
+        <div style={{ fontSize:12.5, color:theme.muted, marginTop:6, maxWidth:320, lineHeight:1.5 }}>
+          Cadrage net, lumière naturelle, fond neutre. Le verso est optionnel mais améliore l'évaluation.
+        </div>
+      </div>
+
+      {/* File inputs (hidden) */}
+      <input ref={frontRef} type="file" accept={accept} capture={capture} style={{ display:'none' }}
+             onChange={e => handleFile(e.target.files?.[0], 'front')}/>
+      <input ref={backRef}  type="file" accept={accept} capture={capture} style={{ display:'none' }}
+             onChange={e => handleFile(e.target.files?.[0], 'back')}/>
+
+      {/* Upload slots */}
+      <div style={{ display:'flex', gap:10, padding:'20px 16px 0' }}>
+        {[
+          { label:'Recto', required:true,  file:frontFile, preview:frontPreview, ref:frontRef },
+          { label:'Verso', required:false, file:backFile,  preview:backPreview,  ref:backRef  },
+        ].map(slot => (
+          <button key={slot.label} onClick={() => slot.ref.current?.click()} style={{
+            flex:1, aspectRatio:'5/7', borderRadius:16, cursor:'pointer',
+            border: slot.file ? `1.5px solid ${accent}` : `1.5px dashed ${theme.border}`,
+            background: slot.file ? `${accent}0e` : theme.surface,
+            padding:10, display:'flex', flexDirection:'column', position:'relative', overflow:'hidden',
+          }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.12em', color:slot.file ? accent : theme.muted, textTransform:'uppercase' }}>
+              <span>{slot.label}</span>
+              {slot.required && <span>REQUIS</span>}
+            </div>
+            {slot.file ? (
+              <div style={{ flex:1, marginTop:8, borderRadius:8, overflow:'hidden' }}>
+                <img src={slot.preview} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+              </div>
+            ) : (
+              <div style={{ flex:1, marginTop:8, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, color:theme.muted }}>
+                <Icon.cam size={22} color={theme.faint}/>
+                <div style={{ fontSize:11, textAlign:'center', maxWidth:110, lineHeight:1.3 }}>
+                  {curMode === 'camera' ? 'Prendre la photo' : 'Choisir un fichier'}
+                </div>
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Mode toggle */}
+      <div style={{ padding:'14px 16px 0' }}>
+        <div style={{ display:'flex', padding:4, borderRadius:12, background:theme.chipBg }}>
+          {[{k:'upload', l:'Importer', icon:'upload'}, {k:'camera', l:'Photo', icon:'cam'}].map(o => {
+            const on = curMode === o.k;
+            return (
+              <button key={o.k} onClick={() => setCurMode(o.k)} style={{
+                flex:1, height:34, border:'none', borderRadius:9, cursor:'pointer',
+                background: on ? theme.surface : 'transparent',
+                color: on ? theme.text : theme.muted,
+                boxShadow: on ? theme.elev1 : 'none',
+                display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:500,
+              }}>
+                {React.createElement(Icon[o.icon], { size:16 })} {o.l}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Privacy note */}
+      <div style={{ padding:'18px 16px 0' }}>
+        <div style={{ padding:12, borderRadius:12, background:theme.surface2, border:`1px solid ${theme.borderS}`, display:'flex', gap:10, color:theme.muted, fontSize:11.5, lineHeight:1.45 }}>
+          <Icon.info color={theme.muted}/>
+          <div>Vos cartes ne sont pas stockées. L'image est traitée puis supprimée après analyse.</div>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ margin:'12px 16px 0', padding:'10px 12px', borderRadius:10, background:`${GRADE.bad}18`, color:GRADE.bad, fontSize:12.5, lineHeight:1.4 }}>
+          {error}
+        </div>
+      )}
+
+      {/* CTA */}
+      <div style={{ padding:'20px 16px 0' }}>
+        <button disabled={!frontFile || loading} onClick={handleAnalyze} style={{
+          width:'100%', height:52, border:'none', borderRadius:14,
+          background: frontFile && !loading ? theme.text : theme.chipBg,
+          color: frontFile && !loading ? theme.bg : theme.faint,
+          fontFamily:"'Geist', system-ui", fontSize:15, fontWeight:600,
+          cursor: frontFile && !loading ? 'pointer' : 'not-allowed',
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          boxShadow: frontFile ? theme.elev2 : 'none',
+        }}>
+          {loading ? <><Spinner size={18} color={theme.bg}/> Identification…</> : <><Icon.spark size={16}/> Analyser ma carte</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── ScanMatch ────────────────────────────────────────────────────────── */
+function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfirm }) {
+  const [candidates, setCandidates] = React.useState([]);
+  const [autoId, setAutoId]         = React.useState(null);
+  const [selected, setSelected]     = React.useState(null);
+  const [search, setSearch]         = React.useState(identity?.name || '');
+  const [loading, setLoading]       = React.useState(true);
+  const [confirming, setConfirming] = React.useState(false);
+  const [error, setError]           = React.useState(null);
+  const [visibleCount, setVisible]  = React.useState(12);
+  const lang = TCGDEX_LANG[identity?.language?.toUpperCase()] || 'fr';
+
+  const doSearch = React.useCallback(async (name) => {
+    setLoading(true); setError(null); setSelected(null); setAutoId(null); setVisible(12);
+    try {
+      const { candidates: cands } = await apiFetch('/api/search', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, language: identity?.language || 'FR' }),
+      });
+      if (cands?.length) {
+        const { match_id } = await apiFetch('/api/auto_match', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang }),
+        });
+        // AI suggestion first, rest in original order
+        const sorted = match_id
+          ? [cands.find(c => c.id === match_id), ...cands.filter(c => c.id !== match_id)].filter(Boolean)
+          : cands;
+        setAutoId(match_id);
+        setSelected(match_id || sorted[0]?.id);
+        setCandidates(sorted);
+      } else {
+        setCandidates([]);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [identity, lang]);
+
+  React.useEffect(() => { doSearch(identity?.name || ''); }, []);
+
+  const handleConfirm = async () => {
+    if (!selected) return;
+    setConfirming(true); setError(null);
+    try {
+      const frontB64 = await compressImage(frontFile);
+      const backB64  = backFile ? await compressImage(backFile) : null;
+      const report = await apiFetch('/api/report', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ card_id:selected, lang, front_image:frontB64, back_image:backB64 }),
+      });
+      onConfirm({ report, selectedId:selected });
+    } catch (e) {
+      setError(e.message);
+      setConfirming(false);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    doSearch(search);
+  };
+
+  return (
+    <div style={{ paddingBottom:110, overflowY:'auto', height:'100%' }}>
+      <ScanHeader theme={theme} step={2} back={back}/>
+      <div style={{ padding:'0 16px' }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:22, fontWeight:600, letterSpacing:'-0.025em', color:theme.text }}>
+          Quelle version<br/>de cette carte ?
+        </div>
+        {identity && (
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8, flexWrap:'wrap' }}>
+            <Chip theme={theme} tone="accent" accentColor={accent}>
+              <Icon.spark size={11} color={accent}/> Identifié : <b style={{ fontWeight:600, marginLeft:3 }}>{identity.name}</b>
+            </Chip>
+            {identity.number && <Chip theme={theme}>{identity.number}</Chip>}
+            {identity.language && <Chip theme={theme}>{LANG_FLAGS[identity.language] || identity.language} {identity.language}</Chip>}
+          </div>
+        )}
+      </div>
+
+      {/* Search bar */}
+      <form onSubmit={handleSearch} style={{ padding:'16px 16px 0' }}>
+        <div style={{ display:'flex', gap:8 }}>
+          <div style={{ flex:1, height:40, borderRadius:12, background:theme.surface, border:`1px solid ${theme.border}`, display:'flex', alignItems:'center', padding:'0 12px', gap:8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="6.5" stroke={theme.muted} strokeWidth="1.6"/>
+              <path d="M16 16l4 4" stroke={theme.muted} strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+                   placeholder="Affiner la recherche…"
+                   style={{ border:'none', background:'transparent', color:theme.text, fontSize:13, outline:'none', flex:1 }}/>
+          </div>
+          <button type="submit" style={{ height:40, padding:'0 14px', borderRadius:12, border:'none', background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            OK
+          </button>
+        </div>
+      </form>
+
+      {loading && (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'48px 16px', color:theme.muted }}>
+          <Spinner size={28} color={accent}/>
+          <span style={{ fontSize:13 }}>Recherche dans TCGdex…</span>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ margin:'16px', padding:'12px', borderRadius:12, background:`${GRADE.bad}18`, color:GRADE.bad, fontSize:12.5 }}>
+          {error}
+          <button onClick={() => doSearch(search)} style={{ marginLeft:8, textDecoration:'underline', background:'none', border:'none', color:GRADE.bad, cursor:'pointer' }}>Réessayer</button>
+        </div>
+      )}
+
+      {!loading && !error && candidates.length === 0 && (
+        <div style={{ padding:'32px 16px', textAlign:'center', color:theme.muted, fontSize:13 }}>
+          Aucune carte trouvée. Essayez un autre nom.
+        </div>
+      )}
+
+      {!loading && candidates.length > 0 && (
+        <>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'14px 16px 0' }}>
+            {candidates.slice(0, visibleCount).map(c => {
+              const on = selected === c.id;
+              const isAi = c.id === autoId;
+              return (
+                <button key={c.id} onClick={() => setSelected(c.id)} style={{
+                  textAlign:'left', cursor:'pointer', position:'relative',
+                  border: on ? `1.5px solid ${accent}` : `1px solid ${theme.borderS}`,
+                  borderRadius:14, background:theme.surface, padding:8,
+                  display:'flex', flexDirection:'column', gap:6,
+                }}>
+                  {isAi && (
+                    <div style={{ position:'absolute', top:-7, left:10, padding:'2px 8px', borderRadius:99, background:accent, color:'#fff', fontFamily:"'Geist Mono', monospace", fontSize:9.5, fontWeight:600, letterSpacing:'0.08em', display:'flex', alignItems:'center', gap:4, zIndex:2 }}>
+                      <Icon.spark size={10} color="#fff"/> SUGGESTION IA
+                    </div>
+                  )}
+                  <CardImg imageUrl={c.image} card={{ type:'water', monogram:(c.name||'?')[0] }} w={156} radius={0.04}/>
+                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, letterSpacing:'-0.01em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {c.name}{c.rarity ? ` — ${c.rarity}` : ''}
+                  </div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {c.set?.name || ''} {c.localId ? `· ${c.localId}` : ''}
+                  </div>
+                  {on && (
+                    <div style={{ position:'absolute', top:12, right:12, width:22, height:22, borderRadius:99, background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <Icon.check size={14} color="#fff"/>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {visibleCount < candidates.length && (
+            <div style={{ padding:'14px 16px 0', textAlign:'center' }}>
+              <button onClick={() => setVisible(v => v + 12)} style={{
+                height:38, padding:'0 24px', borderRadius:99, cursor:'pointer',
+                border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text,
+                fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:500,
+                display:'inline-flex', alignItems:'center', gap:6,
+              }}>
+                Voir plus <span style={{ color:theme.muted, fontSize:11 }}>({candidates.length - visibleCount} restantes)</span>
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {error && !loading && (
+        <div style={{ margin:'16px', padding:'10px 12px', borderRadius:10, background:`${GRADE.bad}18`, color:GRADE.bad, fontSize:12.5 }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ padding:'20px 16px 0' }}>
+        <button disabled={!selected || confirming} onClick={handleConfirm} style={{
+          width:'100%', height:52, border:'none', borderRadius:14,
+          background: selected && !confirming ? theme.text : theme.chipBg,
+          color: selected && !confirming ? theme.bg : theme.faint,
+          fontFamily:"'Geist', system-ui", fontSize:15, fontWeight:600,
+          cursor: selected && !confirming ? 'pointer' : 'not-allowed',
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          boxShadow: selected ? theme.elev2 : 'none',
+        }}>
+          {confirming ? <><Spinner size={18} color={theme.bg}/> Analyse en cours…</> : 'Confirmer la sélection'}
+        </button>
+        {confirming && (
+          <div style={{ textAlign:'center', fontSize:11.5, color:theme.muted, marginTop:10 }}>
+            L'évaluation par IA peut prendre 20–30 secondes.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── ScanReport ───────────────────────────────────────────────────────── */
+function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const [added, setAdded]       = React.useState(false);
+
+  if (!report) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:theme.muted }}>
+        Aucun rapport disponible.
+      </div>
+    );
+  }
+
+  const id    = report.identity || {};
+  const cond  = report.condition || {};
+  const price = report.pricing   || {};
+  const val   = report.valuation || {};
+
+  const score    = cond.overall_score || 0;
+  const priceNM  = price.raw_price || 0;
+  const estLow   = val.value_range_low || 0;
+  const estHigh  = val.value_range_high || 0;
+  const conf     = Math.round((val.confidence_score || cond.confidence || 0) * 100);
+  const langFlag = LANG_FLAGS[id.language] || id.language || '';
+  const isLangSpecific = price.language_specific !== false;
+
+  const handleAdd = () => {
+    onAdd(report);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  return (
+    <div style={{ paddingBottom:110, overflowY:'auto', height:'100%' }}>
+      <ScanHeader theme={theme} step={3} back={back}/>
+
+      {/* IDENTITY */}
+      <div style={{ padding:'0 16px' }}>
+        <div style={{ display:'flex', gap:14, padding:14, borderRadius:16, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+          <CardImg imageUrl={id.image} card={{ type:'water', monogram:(id.name||'?')[0] }} w={84} radius={0.05}/>
+          <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontFamily:"'Geist', system-ui", fontSize:22, fontWeight:600, letterSpacing:'-0.025em', color:theme.text, lineHeight:1.1 }}>
+                {id.name}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:6, fontFamily:"'Geist Mono', monospace", fontSize:11.5, color:theme.muted }}>
+                {id.number && <span>{id.number}</span>}
+                {id.set_name && <><span style={{ opacity:0.4 }}>·</span><span>{id.set_name}</span></>}
+              </div>
+              <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
+                {id.language && <Chip theme={theme}>{langFlag} {id.language}</Chip>}
+                {id.rarity && <Chip theme={theme}>{id.rarity}</Chip>}
+              </div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:8, fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:GRADE.good }}>
+              <Icon.check size={12} color={GRADE.good}/> Identification confirmée
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* GRADING */}
+      <div style={{ padding:'14px 16px 0' }}>
+        <SectionHead theme={theme} title="État · grading" action="auto"/>
+        <div style={{ marginTop:10, padding:16, borderRadius:16, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <ScoreRing value={score} size={92} stroke={8}/>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:"'Geist', system-ui", fontSize:15, fontWeight:600, color:gradeColor(score), letterSpacing:'-0.01em' }}>
+                {gradeLabel(score)}
+              </div>
+              <div style={{ fontSize:11.5, color:theme.muted, marginTop:3, lineHeight:1.4 }}>
+                Score global pondéré.<br/>Évaluation IA · marge ± 0.4
+              </div>
+            </div>
+          </div>
+          <div style={{ height:1, background:theme.borderS, margin:'14px 0' }}/>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <ScoreBar theme={theme} label="Centrage" value={cond.centering || 0} weight={15}/>
+            <ScoreBar theme={theme} label="Coins"    value={cond.corners   || 0} weight={30}/>
+            <ScoreBar theme={theme} label="Bords"    value={cond.edges     || 0} weight={25}/>
+            <ScoreBar theme={theme} label="Surface"  value={cond.surface   || 0} weight={30}/>
+          </div>
+          {id.observations?.length > 0 && (
+            <>
+              <button onClick={() => setExpanded(v => !v)} style={{ marginTop:14, width:'100%', textAlign:'left', cursor:'pointer', background:theme.surface2, border:`1px solid ${theme.borderS}`, borderRadius:10, padding:'10px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', color:theme.text, fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:500 }}>
+                Observations détaillées
+                <span style={{ transform: expanded ? 'rotate(90deg)' : 'none', color:theme.muted }}><Icon.chev size={14}/></span>
+              </button>
+              {expanded && (
+                <ul style={{ margin:'10px 0 0', padding:'0 0 0 16px', fontSize:12, color:theme.muted, lineHeight:1.55 }}>
+                  {id.observations.map((o, i) => <li key={i} style={{ marginBottom:4 }}>{o}</li>)}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* PRICE */}
+      <div style={{ padding:'14px 16px 0' }}>
+        <SectionHead theme={theme} title="Estimation prix" action="CardMarket"/>
+        <div style={{ marginTop:10, padding:16, borderRadius:16, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+            <span style={{ fontFamily:"'Geist', system-ui", fontSize:32, fontWeight:600, letterSpacing:'-0.03em', color:theme.text }}>
+              € {Math.round(estLow)}–{Math.round(estHigh)}
+            </span>
+          </div>
+          <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Fourchette selon état évalué</div>
+          <div style={{ height:1, background:theme.borderS, margin:'12px 0' }}/>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+            <span style={{ fontSize:12.5, color:theme.muted }}>Référence Near Mint</span>
+            <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:13, color:theme.text, fontWeight:500 }}>
+              € {priceNM.toFixed(2).replace('.', ',')}
+            </span>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginTop:8 }}>
+            <span style={{ fontSize:12.5, color:theme.muted }}>Confiance globale</span>
+            <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:13, color:theme.text, fontWeight:500 }}>
+              {conf}%
+            </span>
+          </div>
+          {!isLangSpecific && (
+            <div style={{ marginTop:12, padding:'8px 10px', borderRadius:8, background:`${GRADE.mid}14`, color:GRADE.mid, fontSize:11.2, lineHeight:1.4, display:'flex', gap:8 }}>
+              <Icon.info size={13} color={GRADE.mid}/>
+              <span>Prix de référence non spécifique à la langue {id.language}. Variation possible.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ACTIONS */}
+      <div style={{ padding:'14px 16px 0', display:'flex', gap:10 }}>
+        <button onClick={handleAdd} style={{
+          flex:1, height:48, border:`1px solid ${theme.border}`, borderRadius:14,
+          background: added ? `${GRADE.good}18` : theme.surface, color: added ? GRADE.good : theme.text, cursor:'pointer',
+          fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:500,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+        }}>
+          {added ? <><Icon.check size={15} color={GRADE.good}/> Ajoutée</> : <><Icon.plus size={15}/> Ajouter</>}
+        </button>
+        <button onClick={() => openSell({ report })} style={{
+          flex:1, height:48, border:'none', borderRadius:14,
+          background:theme.text, color:theme.bg, cursor:'pointer',
+          fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+          boxShadow:theme.elev1,
+        }}>
+          <Icon.euro size={15}/> Vendre
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── CollectionReport (view a saved card) ─────────────────────────────── */
+function CollectionReport({ theme, accent, item, back, openSell }) {
+  const report = item?.report;
+  if (!report) return null;
+  return <ScanReport theme={theme} accent={accent} report={report} back={back} goTo={() => {}} onAdd={() => {}} openSell={openSell}/>;
+}
+
+/* ── Collection ───────────────────────────────────────────────────────── */
+function Collection({ theme, accent, collection, goTo, openSell, onRemove }) {
+  const [sort, setSort] = React.useState('date');
+  const items = [...collection];
+  items.sort((a, b) => {
+    if (sort === 'valeur') return (b.report?.valuation?.estimated_value || 0) - (a.report?.valuation?.estimated_value || 0);
+    if (sort === 'etat')   return (b.report?.condition?.overall_score || 0) - (a.report?.condition?.overall_score || 0);
+    return b.id - a.id;
+  });
+  const total = collection.reduce((s, i) => s + (i.report?.valuation?.estimated_value || 0), 0);
+
+  return (
+    <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
+      <div style={{ padding:'6px 20px 8px' }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:26, fontWeight:600, letterSpacing:'-0.03em', color:theme.text }}>Ma collection</div>
+        <div style={{ display:'flex', alignItems:'baseline', gap:12, marginTop:4, fontFamily:"'Geist Mono', monospace", fontSize:12, color:theme.muted }}>
+          <span>{items.length} cartes</span>
+          <span style={{ color:theme.text, fontWeight:500 }}>· € {Math.round(total)} estimé</span>
+        </div>
+      </div>
+
+      <div style={{ padding:'6px 16px 0', display:'flex', gap:6 }}>
+        {[{k:'date', l:'Date'}, {k:'valeur', l:'Valeur'}, {k:'etat', l:'État'}].map(o => {
+          const on = sort === o.k;
+          return (
+            <button key={o.k} onClick={() => setSort(o.k)} style={{
+              height:30, padding:'0 12px', borderRadius:99, cursor:'pointer',
+              border:`1px solid ${on ? theme.text : theme.border}`,
+              background: on ? theme.text : 'transparent',
+              color: on ? theme.bg : theme.muted,
+              fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:500,
+              display:'flex', alignItems:'center', gap:5,
+            }}>
+              {o.l} {on && <Icon.sort size={13} color={theme.bg}/>}
+            </button>
+          );
+        })}
+      </div>
+
+      {items.length === 0 ? (
+        <div style={{ padding:'48px 24px', textAlign:'center' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
+          <div style={{ fontSize:14, fontWeight:600, color:theme.text }}>Collection vide</div>
+          <div style={{ fontSize:12.5, color:theme.muted, marginTop:6 }}>Scannez vos premières cartes pour les retrouver ici.</div>
+          <button onClick={() => goTo('scan-upload')} style={{ marginTop:20, height:44, padding:'0 24px', borderRadius:12, border:'none', background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer' }}>
+            Scanner une carte
+          </button>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'14px 16px 0' }}>
+          {items.map(item => {
+            const id    = item.report?.identity || {};
+            const score = item.report?.condition?.overall_score || 0;
+            const est   = item.report?.valuation?.estimated_value || 0;
+            return (
+              <div key={item.id} style={{ border:`1px solid ${theme.borderS}`, borderRadius:14, background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:7 }}>
+                <button onClick={() => goTo('collection-item', { collectionItem:item })} style={{ border:'none', background:'transparent', padding:0, cursor:'pointer' }}>
+                  <CardImg imageUrl={id.image} card={{ type:'water', monogram:(id.name||'?')[0] }} w={156} radius={0.04}/>
+                </button>
+                <div>
+                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {id.name}
+                  </div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, display:'flex', justifyContent:'space-between', marginTop:2 }}>
+                    <span>{id.number}</span>
+                    <span>{LANG_FLAGS[id.language] || id.language}</span>
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:12.5, color:gradeColor(score), fontWeight:600 }}>{score.toFixed(1)}</span>
+                  <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:11.5, color:theme.text, fontWeight:500 }}>€{Math.round(est)}</span>
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={() => openSell(item)} style={{ flex:1, height:28, border:'none', borderRadius:8, cursor:'pointer', background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:11.5, fontWeight:600 }}>Vendre</button>
+                  <button title="Retirer" onClick={() => onRemove(item.id)} style={{ width:28, height:28, border:`1px solid ${theme.border}`, borderRadius:8, background:theme.surface, color:theme.muted, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <Icon.trash size={14}/>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── SellSheet ────────────────────────────────────────────────────────── */
+function SellSheet({ theme, accent, item, onClose }) {
+  const report  = item?.report || null;
+  const id      = report?.identity || {};
+  const val     = report?.valuation || {};
+  const [platform, setPlatform] = React.useState('vinted');
+  const [listing, setListing]   = React.useState(null);
+  const [loading, setLoading]   = React.useState(false);
+  const [error, setError]       = React.useState(null);
+  const [title, setTitle]       = React.useState('');
+  const [body, setBody]         = React.useState('');
+  const [price, setPrice]       = React.useState('');
+  const [tags, setTags]         = React.useState([]);
+  const [copied, setCopied]     = React.useState(false);
+  const platformObj = PLATFORMS.find(p => p.id === platform) || PLATFORMS[0];
+
+  const fetchListing = React.useCallback(async (plat) => {
+    if (!report) return;
+    setLoading(true); setError(null);
+    try {
+      const data = await apiFetch('/api/listing', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ report, platform: plat, language: TCGDEX_LANG[id.language] || 'fr' }),
+      });
+      setListing(data);
+      setTitle(data.title || '');
+      setBody(data.description || '');
+      setPrice(String(Math.round(data.suggested_price || val.estimated_value || 0)));
+      setTags(data.tags || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [report, id.language, val.estimated_value]);
+
+  React.useEffect(() => { fetchListing(platform); }, [platform]);
+
+  const handleCopy = () => {
+    const text = `${title}\n\n${body}${tags.length ? `\n\n${tags.join(' ')}` : ''}`;
+    try { navigator.clipboard?.writeText(text); } catch (e) {}
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
+  };
+
+  const handleOpen = () => {
+    handleCopy();
+    window.open(platformObj.url, '_blank');
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:80, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, maxHeight:'90dvh', display:'flex', flexDirection:'column', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
+        {/* handle */}
+        <div style={{ display:'flex', justifyContent:'center', padding:'8px 0 4px' }}>
+          <div style={{ width:36, height:4, borderRadius:99, background:theme.border }}/>
+        </div>
+
+        {/* header */}
+        <div style={{ padding:'6px 16px 12px', display:'flex', alignItems:'center', gap:12 }}>
+          <CardImg imageUrl={id.image} card={{ type:'water', monogram:(id.name||'?')[0] }} w={48} radius={0.08}/>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontFamily:"'Geist', system-ui", fontSize:16, fontWeight:600, letterSpacing:'-0.02em', color:theme.text }}>
+              Vendre · {id.name || 'une carte'}
+            </div>
+            <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>
+              {id.number && `${id.number} · `}estimation € {Math.round(val.estimated_value || 0)}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:99, cursor:'pointer', border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Icon.close size={16}/>
+          </button>
+        </div>
+
+        {/* scrollable */}
+        <div style={{ flex:1, overflow:'auto', padding:'4px 16px 32px' }}>
+          {/* platform picker */}
+          <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.14em', color:theme.faint, textTransform:'uppercase', marginBottom:8 }}>Plateforme</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {PLATFORMS.map(p => {
+              const on = platform === p.id;
+              return (
+                <button key={p.id} onClick={() => setPlatform(p.id)} style={{
+                  height:32, padding:'0 11px', borderRadius:99, cursor:'pointer',
+                  border: on ? `1.5px solid ${p.color}` : `1px solid ${theme.border}`,
+                  background: on ? `${p.color}10` : theme.surface,
+                  color: on ? p.color : theme.text,
+                  fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:500,
+                  display:'flex', alignItems:'center', gap:6,
+                }}>
+                  <span style={{ width:7, height:7, borderRadius:99, background:p.color, display:'inline-block' }}/>
+                  {p.name}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop:8, fontSize:11.5, color:theme.muted, display:'flex', gap:6 }}>
+            <Icon.spark size={12} color={accent}/>
+            <span>Ton <b style={{ color:theme.text, fontWeight:500 }}>{platformObj.tone}</b> · annonce générée par IA</span>
+          </div>
+
+          {loading && (
+            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'24px 0', color:theme.muted, fontSize:13 }}>
+              <Spinner size={20} color={accent}/> Génération de l'annonce…
+            </div>
+          )}
+
+          {error && !loading && (
+            <div style={{ marginTop:12, padding:'10px 12px', borderRadius:10, background:`${GRADE.bad}18`, color:GRADE.bad, fontSize:12.5 }}>
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && listing && (
+            <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:10 }}>
+              {/* Title */}
+              <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.12em', color:theme.faint, textTransform:'uppercase' }}>Titre</span>
+                <input value={title} onChange={e => setTitle(e.target.value)} style={{ width:'100%', height:40, padding:'0 12px', borderRadius:10, border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13, outline:'none', boxSizing:'border-box' }}/>
+              </label>
+              {/* Body */}
+              <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.12em', color:theme.faint, textTransform:'uppercase' }}>Description</span>
+                <textarea value={body} onChange={e => setBody(e.target.value)} rows={6} style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13, outline:'none', resize:'none', lineHeight:1.45, boxSizing:'border-box' }}/>
+              </label>
+              {/* Price */}
+              <div style={{ display:'flex', gap:10 }}>
+                <label style={{ display:'flex', flexDirection:'column', gap:5, flex:1 }}>
+                  <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.12em', color:theme.faint, textTransform:'uppercase' }}>Prix suggéré</span>
+                  <div style={{ position:'relative' }}>
+                    <input value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9]/g,''))} style={{ width:'100%', height:40, padding:'0 28px 0 12px', borderRadius:10, border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text, fontFamily:"'Geist Mono', monospace", fontSize:13, outline:'none', boxSizing:'border-box' }}/>
+                    <span style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', fontFamily:"'Geist Mono', monospace", color:theme.muted, fontSize:13 }}>€</span>
+                  </div>
+                </label>
+              </div>
+              {/* Tags */}
+              {tags.length > 0 && (
+                <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                  <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.12em', color:theme.faint, textTransform:'uppercase' }}>Tags</span>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {tags.map(t => (
+                      <span key={t} style={{ padding:'4px 9px', borderRadius:6, background:theme.chipBg, fontFamily:"'Geist Mono', monospace", fontSize:11, color:theme.text }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* CTAs */}
+          {!loading && !error && listing && (
+            <>
+              <div style={{ marginTop:18, display:'flex', gap:8 }}>
+                <button onClick={handleCopy} style={{ flex:1, height:48, border:`1px solid ${theme.border}`, borderRadius:14, background:theme.surface, color:theme.text, cursor:'pointer', fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:500, display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+                  {copied ? <><Icon.check size={15} color={GRADE.good}/> Copié</> : <><Icon.copy size={15}/> Copier</>}
+                </button>
+                <button onClick={handleOpen} style={{ flex:1.4, height:48, border:'none', borderRadius:14, background:platformObj.color, color:'#fff', cursor:'pointer', fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:7, boxShadow:theme.elev1 }}>
+                  Ouvrir {platformObj.name} <Icon.ext size={13} color="#fff"/>
+                </button>
+              </div>
+              <div style={{ marginTop:10, padding:'8px 10px', borderRadius:8, background:theme.surface2, border:`1px solid ${theme.borderS}`, fontSize:11, color:theme.muted, lineHeight:1.4, display:'flex', gap:7 }}>
+                <Icon.info size={12} color={theme.muted}/>
+                Le texte est copié dans le presse-papiers. Collez-le dans le formulaire de création d'annonce.
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── AuthSheet ────────────────────────────────────────────────────────── */
+function AuthSheet({ theme, accent, onClose, onAuth }) {
+  const [mode, setMode]         = React.useState('login');
+  const [pseudo, setPseudo]     = React.useState('');
+  const [email, setEmail]       = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading]   = React.useState(false);
+  const [error, setError]       = React.useState(null);
+
+  const switchMode = m => { setMode(m); setError(null); };
+
+  const handleSubmit = async () => {
+    if (!pseudo.trim() || !password) { setError("Remplis tous les champs obligatoires."); return; }
+    if (mode === 'register' && !email.trim()) { setError("L'adresse email est obligatoire pour l'inscription."); return; }
+    setLoading(true); setError(null);
+    try {
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+      const payload  = mode === 'register'
+        ? { pseudo: pseudo.trim(), email: email.trim(), password }
+        : { pseudo: pseudo.trim(), password };
+      const result = await apiFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      onAuth(result);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    height:44, padding:'0 14px', borderRadius:12,
+    border:`1px solid ${theme.border}`, background:theme.surface,
+    color:theme.text, fontFamily:"'Geist', system-ui", fontSize:14,
+    outline:'none', width:'100%', boxSizing:'border-box',
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, padding:'12px 20px 40px', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
+
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+          <div style={{ width:36, height:4, borderRadius:99, background:theme.border }}/>
+        </div>
+
+        {/* Mode toggle */}
+        <div style={{ display:'flex', gap:4, marginBottom:22, padding:4, borderRadius:14, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+          {[['login','Connexion'],['register',"S'inscrire"]].map(([m, label]) => (
+            <button key={m} onClick={() => switchMode(m)} style={{
+              flex:1, height:36, borderRadius:10, border:'none', cursor:'pointer',
+              background: mode === m ? theme.bg : 'transparent',
+              color: mode === m ? theme.text : theme.muted,
+              fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600,
+              boxShadow: mode === m ? theme.elev1 : 'none',
+              transition:'background .15s',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            <span style={{ fontSize:11, color:theme.muted, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Pseudo</span>
+            <input value={pseudo} onChange={e => setPseudo(e.target.value)} placeholder="MonPseudo" autoCapitalize="none" style={inputStyle}/>
+          </label>
+
+          {mode === 'register' && (
+            <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+              <span style={{ fontSize:11, color:theme.muted, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Email</span>
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="moi@exemple.fr" style={inputStyle}/>
+              <span style={{ fontSize:11, color:theme.faint, lineHeight:1.4 }}>Utilisé uniquement pour récupérer ton compte si tu oublies ton pseudo ou mot de passe.</span>
+            </label>
+          )}
+
+          <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            <span style={{ fontSize:11, color:theme.muted, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Mot de passe</span>
+            <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="••••••••" style={inputStyle}/>
+          </label>
+
+          {error && (
+            <div style={{ padding:'10px 12px', borderRadius:10, background:`${GRADE.bad}18`, color:GRADE.bad, fontSize:12.5, lineHeight:1.4 }}>
+              {error}
+            </div>
+          )}
+
+          <button onClick={handleSubmit} disabled={loading} style={{
+            height:48, border:'none', borderRadius:14,
+            cursor: loading ? 'default' : 'pointer',
+            background: accent, color:'#fff',
+            fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+            opacity: loading ? 0.75 : 1, transition:'opacity .15s',
+          }}>
+            {loading
+              ? <><Spinner size={18} color="#fff"/> Chargement…</>
+              : mode === 'login' ? 'Se connecter' : "Créer mon compte"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── BottomTabs ───────────────────────────────────────────────────────── */
+function BottomTabs({ tab, setTab, theme, accent }) {
+  const items = [
+    { k:'home',       l:'Accueil',    icon:'home' },
+    { k:'scan',       l:'Scanner',    icon:'scan', center:true },
+    { k:'collection', l:'Collection', icon:'stack' },
+  ];
+  return (
+    <div style={{ position:'sticky', bottom:0, zIndex:40, padding:'6px 12px env(safe-area-inset-bottom, 16px)', background:`linear-gradient(to top, ${theme.bg} 60%, ${theme.bg}00)` }}>
+      <div style={{ height:60, borderRadius:22, padding:'0 6px', background:theme.surface, border:`1px solid ${theme.borderS}`, boxShadow:theme.elev2, display:'flex', alignItems:'center', justifyContent:'space-around' }}>
+        {items.map(it => {
+          const on = tab === it.k || (it.k === 'scan' && tab.startsWith && tab.startsWith('scan'));
+          if (it.center) {
+            return (
+              <button key={it.k} onClick={() => setTab('scan')} style={{ width:52, height:52, borderRadius:99, border:'none', cursor:'pointer', background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 6px 20px ${accent}55, 0 1px 2px rgba(0,0,0,0.18)`, marginTop:-22 }}>
+                {React.createElement(Icon[it.icon], { size:22, color:'#fff' })}
+              </button>
+            );
+          }
+          return (
+            <button key={it.k} onClick={() => setTab(it.k)} style={{ flex:1, height:56, border:'none', background:'transparent', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, color:on ? theme.text : theme.faint }}>
+              {React.createElement(Icon[it.icon], { size:21, color: on ? theme.text : theme.faint })}
+              <span style={{ fontFamily:"'Geist', system-ui", fontSize:10.5, fontWeight:on ? 600 : 500 }}>{it.l}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── App ──────────────────────────────────────────────────────────────── */
+function App() {
+  const [dark, setDark]     = React.useState(true);
+  const [accentName, setAccentName] = React.useState('Gold');
+  const theme  = THEMES[dark ? 'dark' : 'light'];
+  const accent = ACCENTS[accentName] || ACCENTS.Gold;
+
+  const [screen, setScreen]     = React.useState('home');
+  const [screenArgs, setArgs]   = React.useState({});
+  const [sellOpen, setSellOpen] = React.useState(false);
+  const [sellItem, setSellItem] = React.useState(null);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [authOpen, setAuthOpen] = React.useState(false);
+
+  // scan flow state
+  const [scanState, setScan] = React.useState({
+    identity: null, frontFile: null, backFile: null, report: null,
+  });
+
+  // auth: persisted in localStorage
+  const [authUser, setAuthUser] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('pg_auth') || 'null'); }
+    catch { return null; }
+  });
+  const saveAuthUser = (u) => {
+    setAuthUser(u);
+    try {
+      if (u) localStorage.setItem('pg_auth', JSON.stringify(u));
+      else   localStorage.removeItem('pg_auth');
+    } catch {}
+  };
+
+  // collection: persisted in localStorage via effect
+  const [collection, setCollection] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('pg_collection') || '[]'); }
+    catch { return []; }
+  });
+  React.useEffect(() => {
+    try { localStorage.setItem('pg_collection', JSON.stringify(collection)); } catch {}
+  }, [collection]);
+  const saveCollection = setCollection;
+
+  const goTo = (s, args = {}) => { setScreen(s); setArgs(args); };
+  const openSell  = (item) => { setSellItem(item); setSellOpen(true); };
+  const closeSell = () => setSellOpen(false);
+
+  const tab = screen === 'home' ? 'home' : screen === 'collection' ? 'collection' : 'scan';
+  const setTab = k => {
+    if (k === 'home')            goTo('home');
+    else if (k === 'collection') goTo('collection');
+    else                         goTo('scan-upload', { mode:'upload' });
+  };
+
+  const back = () => {
+    if (screen === 'scan-match')        goTo('scan-upload');
+    else if (screen === 'scan-report')  goTo('home');
+    else if (screen === 'collection-item') goTo('collection');
+    else goTo('home');
+  };
+
+  const handleAnalyze = ({ identity, frontFile, backFile }) => {
+    setScan({ identity, frontFile, backFile, report:null });
+    goTo('scan-match');
+  };
+
+  const handleConfirm = ({ report }) => {
+    setScan(s => ({ ...s, report }));
+    goTo('scan-report');
+  };
+
+  // On login/register success: sync local items to Supabase then reload
+  const handleAuth = async (user) => {
+    saveAuthUser(user);
+    setAuthOpen(false);
+    try {
+      // Upload any local-only items (no remoteId) to Supabase
+      const localOnly = collection.filter(i => !i.remoteId);
+      for (const li of localOnly) {
+        try {
+          const r = await apiFetch('/api/collection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ report: li.report }),
+          }, user.token);
+          // Update local item with Supabase id
+          saveCollection(prev => prev.map(x => x.id === li.id ? { ...x, id: r.id, remoteId: r.id } : x));
+        } catch {}
+      }
+      // Fetch final remote collection
+      const { items } = await apiFetch('/api/collection', {}, user.token);
+      const remoteItems = items.map(i => ({
+        id: i.id, remoteId: i.id,
+        addedAt: new Date(i.added_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }),
+        report: i.report,
+      }));
+      saveCollection(remoteItems);
+    } catch (e) {
+      console.warn('Collection sync failed:', e.message);
+    }
+  };
+
+  const handleLogout = () => {
+    saveAuthUser(null);
+    // Keep whatever is in localStorage, just mark items as local-only
+    const local = collection.map(i => ({ ...i, remoteId: undefined }));
+    saveCollection(local);
+  };
+
+  const handleAddToCollection = async (report) => {
+    const localId = String(Date.now());
+    const newItem = {
+      id: localId, remoteId: null,
+      addedAt: new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }),
+      report,
+    };
+    const updated = [...collection, newItem];
+    saveCollection(updated);
+
+    if (authUser) {
+      try {
+        const r = await apiFetch('/api/collection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report }),
+        }, authUser.token);
+        saveCollection(c => c.map(x => x.id === localId ? { ...x, id: r.id, remoteId: r.id } : x));
+      } catch (e) {
+        console.warn('Remote add failed:', e.message);
+      }
+    }
+  };
+
+  const handleRemove = async (id) => {
+    const item = collection.find(i => i.id === id);
+    saveCollection(collection.filter(i => i.id !== id));
+    if (authUser && item?.remoteId) {
+      try {
+        await apiFetch(`/api/collection/${item.remoteId}`, { method:'DELETE' }, authUser.token);
+      } catch (e) {
+        console.warn('Remote delete failed:', e.message);
+      }
+    }
+  };
+
+  let content;
+  if (screen === 'home') {
+    content = <Dashboard theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} authUser={authUser} openAuth={() => setAuthOpen(true)} onLogout={handleLogout}/>;
+  } else if (screen === 'scan-upload') {
+    content = <ScanUpload theme={theme} accent={accent} back={back} mode={screenArgs.mode||'upload'} onAnalyze={handleAnalyze}/>;
+  } else if (screen === 'scan-match') {
+    content = <ScanMatch theme={theme} accent={accent} identity={scanState.identity} frontFile={scanState.frontFile} backFile={scanState.backFile} back={back} onConfirm={handleConfirm}/>;
+  } else if (screen === 'scan-report') {
+    content = <ScanReport theme={theme} accent={accent} report={scanState.report} back={back} goTo={goTo} onAdd={handleAddToCollection} openSell={openSell}/>;
+  } else if (screen === 'collection') {
+    content = <Collection theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} onRemove={handleRemove}/>;
+  } else if (screen === 'collection-item') {
+    content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell}/>;
+  }
+
+  return (
+    <div style={{ background:theme.bg, minHeight:'100dvh', display:'flex', flexDirection:'column', color:theme.text }}>
+      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)} authUser={authUser}/>
+      <div style={{ flex:1, overflow:'hidden', position:'relative', display:'flex', flexDirection:'column' }}>
+        {content}
+      </div>
+      <BottomTabs tab={tab} setTab={setTab} theme={theme} accent={accent}/>
+      {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
+      {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onAccent={name => setAccentName(name)} onClose={() => setSettingsOpen(false)}/>}
+      {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
