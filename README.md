@@ -1,42 +1,75 @@
 # CardGrader
 
-An AI-powered agent that evaluates Pokémon TCG cards from a photo: it identifies the card, assesses its physical condition, fetches current market prices, and returns an estimated value — all in a single pipeline call.
-
-## Workflow
-
-1. **Capture** — Provide a photo of the card (JPEG/PNG/WEBP, front face).
-2. **Identify** — `CardIdentifierAgent` sends the image to Claude Vision and extracts the card name, collector number, language, and set name.
-3. **Resolve** — `CardLookupTool` queries the Pokémon TCG API to confirm the exact card record and retrieve the official set code and rarity.
-4. **Grade** — `CardGrader` sends the image to Claude Vision again with a structured grading rubric and scores centering, corners, edges, and surface (each 1–10).
-5. **Price** — `PricingTool` calls the pricing API to fetch the raw market price and graded prices for PSA tiers 3, 5, 7, 9, and 10.
-6. **Score** — `ScoringEngine` maps the overall condition score to the nearest PSA tier, selects the matching price, and computes an estimated value with a confidence-weighted low/high range.
-7. **Report** — The orchestrator assembles and returns a `CardReport` containing the full identity, condition breakdown, pricing data, estimated value, and overall pipeline confidence score.
+An AI-powered web app for Pokémon TCG collectors: scan a card, get an AI grading (centering, corners, edges, surface), fetch current CardMarket prices, and generate sale listings for Vinted, eBay, LeBonCoin and more.
 
 ## Quick start
 
 ```bash
-cp .env.example .env          # fill in your API keys
+cp .env.example .env          # add ANTHROPIC_API_KEY (required) and RAPIDAPI_KEY (optional)
 pip install -r requirements.txt
-python -c "
-from dotenv import load_dotenv
-load_dotenv()
-from src.orchestrator import CardGraderOrchestrator
-report = CardGraderOrchestrator.from_env().evaluate('data/my_card.jpg')
-print(report)
-"
+./run.sh                      # macOS / Linux
+run.bat                       # Windows
+```
+
+Open **http://localhost:3000** in your browser.
+
+## Architecture
+
+```
+Frontend  (http://localhost:3000)   React SPA in frontend/index.html
+    │
+    │  REST API calls
+    ▼
+Backend   (http://localhost:8000)   FastAPI in src/api.py
+    │
+    ├─ POST /api/identify    → Claude Vision — card identification
+    ├─ POST /api/search      → TCGdex API   — find card versions
+    ├─ POST /api/auto_match  → TCGdex       — best match disambiguation
+    ├─ GET  /api/card/{id}   → TCGdex       — full card data + pricing
+    ├─ POST /api/grade       → Claude Vision — physical condition grading
+    ├─ POST /api/report      → full pipeline (identify + grade + price + score)
+    └─ POST /api/listing     → Claude       — AI-generated sale listing
+```
+
+## Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | ✅ | Claude API key (card identification, grading, listings) |
+| `RAPIDAPI_KEY` | ⬜ | RapidAPI key for enhanced pricing (falls back to TCGdex prices) |
+
+## Scanner flow
+
+1. **Upload** — Take a photo or import an image (front required, back optional).
+2. **Identify** — Claude Vision reads the card name, number, language, and set.
+3. **Select** — Choose the exact version from a grid of real TCGdex card images; the AI suggestion is highlighted automatically.
+4. **Report** — Full grading report with sub-scores (centering/corners/edges/surface), price estimation, and confidence.
+5. **Sell** — Generate an optimised listing for Vinted, eBay, LeBonCoin, FB Marketplace, or CardMarket with one click.
+
+## Alternative: Streamlit app (fallback)
+
+```bash
+streamlit run app.py
 ```
 
 ## Project structure
 
 ```
+frontend/
+  index.html              # React SPA (self-contained, no build step)
 src/
-  agents/identifier.py      # Vision agent — card identification
-  tools/card_lookup.py      # TCG API — resolve set code & rarity
-  tools/pricing.py          # Pricing API — fetch market prices
-  evaluation/grader.py      # Vision agent — physical condition grading
-  evaluation/scoring.py     # Scoring engine — valuation calculation
-  models/card.py            # Dataclasses: CardIdentity, CardCondition, CardPricing, CardReport
-  orchestrator.py           # End-to-end pipeline coordinator
-tests/                      # Unit and integration tests
-data/                       # Sample card images for testing
+  api.py                  # FastAPI backend
+  agents/identifier.py    # Vision agent — card identification
+  agents/listing_generator.py  # AI listing generation
+  tools/card_lookup.py    # TCGdex API — resolve card + set
+  tools/pricing.py        # Pricing — CardMarket via TCGdex
+  evaluation/grader.py    # Vision agent — physical condition grading
+  evaluation/scoring.py   # Scoring engine — valuation calculation
+  models/card.py          # Dataclasses: CardIdentity, CardCondition, CardPricing, CardReport
+  orchestrator.py         # End-to-end pipeline coordinator
+tests/                    # Unit tests
+data/                     # Sample card images
+database/schema.sql       # Supabase schema (PostgreSQL)
+run.sh                    # Launch script (macOS/Linux)
+run.bat                   # Launch script (Windows)
 ```
