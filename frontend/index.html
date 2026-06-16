@@ -51,12 +51,52 @@ async function apiFetch(path, opts = {}) {
   return res.json();
 }
 
-async function fileToBase64(file) {
+/* Resize + compress to JPEG before upload — avoids HTTP 413 on Vercel (4.5 MB limit) */
+async function compressImage(file, maxDim = 1200, quality = 0.82) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else                 { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Compression échouée')); return; }
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function compressImageToBlob(file, maxDim = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else                 { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Compression échouée')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = url;
   });
 }
 
@@ -543,8 +583,9 @@ function ScanUpload({ theme, accent, back, mode, onAnalyze }) {
     if (!frontFile) return;
     setLoading(true); setError(null);
     try {
+      const blob = await compressImageToBlob(frontFile);
       const fd = new FormData();
-      fd.append('front', frontFile);
+      fd.append('front', blob, 'front.jpg');
       const identity = await apiFetch('/api/identify', { method:'POST', body:fd });
       onAnalyze({ identity, frontFile, backFile });
     } catch (e) {
@@ -666,25 +707,32 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
   const [loading, setLoading]       = React.useState(true);
   const [confirming, setConfirming] = React.useState(false);
   const [error, setError]           = React.useState(null);
+  const [visibleCount, setVisible]  = React.useState(12);
   const lang = TCGDEX_LANG[identity?.language?.toUpperCase()] || 'fr';
 
   const doSearch = React.useCallback(async (name) => {
-    setLoading(true); setError(null); setSelected(null); setAutoId(null);
+    setLoading(true); setError(null); setSelected(null); setAutoId(null); setVisible(12);
     try {
-      const { candidates: cands, lang: l } = await apiFetch('/api/search', {
+      const { candidates: cands } = await apiFetch('/api/search', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ name, language: identity?.language || 'FR' }),
       });
-      setCandidates(cands || []);
       if (cands?.length) {
         const { match_id } = await apiFetch('/api/auto_match', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang }),
         });
+        // AI suggestion first, rest in original order
+        const sorted = match_id
+          ? [cands.find(c => c.id === match_id), ...cands.filter(c => c.id !== match_id)].filter(Boolean)
+          : cands;
         setAutoId(match_id);
-        setSelected(match_id || cands[0]?.id);
+        setSelected(match_id || sorted[0]?.id);
+        setCandidates(sorted);
+      } else {
+        setCandidates([]);
       }
     } catch (e) {
       setError(e.message);
@@ -699,8 +747,8 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
     if (!selected) return;
     setConfirming(true); setError(null);
     try {
-      const frontB64 = await fileToBase64(frontFile);
-      const backB64  = backFile ? await fileToBase64(backFile) : null;
+      const frontB64 = await compressImage(frontFile);
+      const backB64  = backFile ? await compressImage(backFile) : null;
       const report = await apiFetch('/api/report', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -775,39 +823,52 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
       )}
 
       {!loading && candidates.length > 0 && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'14px 16px 0' }}>
-          {candidates.map(c => {
-            const on = selected === c.id;
-            const isAi = c.id === autoId;
-            const imgUrl = c.image;
-            return (
-              <button key={c.id} onClick={() => setSelected(c.id)} style={{
-                textAlign:'left', cursor:'pointer', position:'relative',
-                border: on ? `1.5px solid ${accent}` : `1px solid ${theme.borderS}`,
-                borderRadius:14, background:theme.surface, padding:8,
-                display:'flex', flexDirection:'column', gap:6,
+        <>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'14px 16px 0' }}>
+            {candidates.slice(0, visibleCount).map(c => {
+              const on = selected === c.id;
+              const isAi = c.id === autoId;
+              return (
+                <button key={c.id} onClick={() => setSelected(c.id)} style={{
+                  textAlign:'left', cursor:'pointer', position:'relative',
+                  border: on ? `1.5px solid ${accent}` : `1px solid ${theme.borderS}`,
+                  borderRadius:14, background:theme.surface, padding:8,
+                  display:'flex', flexDirection:'column', gap:6,
+                }}>
+                  {isAi && (
+                    <div style={{ position:'absolute', top:-7, left:10, padding:'2px 8px', borderRadius:99, background:accent, color:'#fff', fontFamily:"'Geist Mono', monospace", fontSize:9.5, fontWeight:600, letterSpacing:'0.08em', display:'flex', alignItems:'center', gap:4, zIndex:2 }}>
+                      <Icon.spark size={10} color="#fff"/> SUGGESTION IA
+                    </div>
+                  )}
+                  <CardImg imageUrl={c.image} card={{ type:'water', monogram:(c.name||'?')[0] }} w={156} radius={0.04}/>
+                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, letterSpacing:'-0.01em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {c.name}{c.rarity ? ` — ${c.rarity}` : ''}
+                  </div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {c.set?.name || ''} {c.localId ? `· ${c.localId}` : ''}
+                  </div>
+                  {on && (
+                    <div style={{ position:'absolute', top:12, right:12, width:22, height:22, borderRadius:99, background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <Icon.check size={14} color="#fff"/>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {visibleCount < candidates.length && (
+            <div style={{ padding:'14px 16px 0', textAlign:'center' }}>
+              <button onClick={() => setVisible(v => v + 12)} style={{
+                height:38, padding:'0 24px', borderRadius:99, cursor:'pointer',
+                border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text,
+                fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:500,
+                display:'inline-flex', alignItems:'center', gap:6,
               }}>
-                {isAi && (
-                  <div style={{ position:'absolute', top:-7, left:10, padding:'2px 8px', borderRadius:99, background:accent, color:'#fff', fontFamily:"'Geist Mono', monospace", fontSize:9.5, fontWeight:600, letterSpacing:'0.08em', display:'flex', alignItems:'center', gap:4, zIndex:2 }}>
-                    <Icon.spark size={10} color="#fff"/> SUGGESTION IA
-                  </div>
-                )}
-                <CardImg imageUrl={imgUrl} card={{ type:'water', monogram:(c.name||'?')[0] }} w={156} radius={0.04}/>
-                <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, letterSpacing:'-0.01em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                  {c.name}{c.rarity ? ` — ${c.rarity}` : ''}
-                </div>
-                <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                  {c.set?.name || ''} {c.localId ? `· ${c.localId}` : ''}
-                </div>
-                {on && (
-                  <div style={{ position:'absolute', top:12, right:12, width:22, height:22, borderRadius:99, background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <Icon.check size={14} color="#fff"/>
-                  </div>
-                )}
+                Voir plus <span style={{ color:theme.muted, fontSize:11 }}>({candidates.length - visibleCount} restantes)</span>
               </button>
-            );
-          })}
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {error && !loading && (
