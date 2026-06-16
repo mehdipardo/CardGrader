@@ -548,7 +548,7 @@ function ScanUpload({ theme, accent, back, mode, onAnalyze }) {
       const identity = await apiFetch('/api/identify', { method:'POST', body:fd });
       onAnalyze({ identity, frontFile, backFile });
     } catch (e) {
-      setError(e.message || 'Erreur lors de l'identification.');
+      setError(e.message || "Erreur lors de l'identification.");
     } finally {
       setLoading(false);
     }
