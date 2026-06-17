@@ -117,12 +117,26 @@ async def search_cards(body: SearchRequest):
     if not isinstance(candidates, list):
         return {"candidates": [], "lang": lang}
 
-    # Compute auto-match suggestion
-    from src.tools.card_lookup import _number_matches, _extract_set_total
+    # Fetch set list to enrich stubs with human-readable set name.
+    # TCGdex search stubs only carry {id, localId, name, image} — no set info.
+    # The card id format is "{setId}-{localId}", so we parse setId then look it up.
+    try:
+        sets_resp = httpx.get(f"https://api.tcgdex.net/v2/{lang}/sets", timeout=10.0)
+        sets_resp.raise_for_status()
+        set_map: dict[str, str] = {
+            s["id"]: s.get("name", s["id"])
+            for s in sets_resp.json()
+            if isinstance(s, dict) and "id" in s
+        }
+    except Exception:
+        set_map = {}
 
-    # We don't have the original number here — clients pass it separately via
-    # the number field in the identify response. Return raw stubs; the client
-    # or /api/auto_match can disambiguate.
+    for c in candidates:
+        card_id = c.get("id", "")
+        set_id  = card_id.split("-")[0] if "-" in card_id else ""
+        if set_id:
+            c["set"] = {"id": set_id, "name": set_map.get(set_id, set_id)}
+
     return {"candidates": candidates, "lang": lang}
 
 
