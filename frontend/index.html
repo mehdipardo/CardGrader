@@ -400,7 +400,7 @@ function ScanHeader({ theme, step, back }) {
 }
 
 /* ── SettingsSheet ────────────────────────────────────────────────────── */
-function SettingsSheet({ theme, accent, dark, onDark, onAccent, onClose }) {
+function SettingsSheet({ theme, accent, dark, onDark, onClose }) {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, padding:'12px 20px 40px', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
@@ -408,7 +408,7 @@ function SettingsSheet({ theme, accent, dark, onDark, onAccent, onClose }) {
           <div style={{ width:36, height:4, borderRadius:99, background:theme.border }}/>
         </div>
         <div style={{ fontFamily:"'Geist', system-ui", fontSize:16, fontWeight:600, color:theme.text, marginBottom:20 }}>Apparence</div>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <span style={{ fontSize:14, color:theme.text }}>Mode sombre</span>
           <button onClick={() => onDark(!dark)} style={{
             width:48, height:28, borderRadius:99, border:'none', cursor:'pointer',
@@ -421,16 +421,6 @@ function SettingsSheet({ theme, accent, dark, onDark, onAccent, onClose }) {
               transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
             }}/>
           </button>
-        </div>
-        <div style={{ fontSize:12, color:theme.muted, marginBottom:10, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Couleur d'accent</div>
-        <div style={{ display:'flex', gap:10 }}>
-          {Object.entries(ACCENTS).map(([name, color]) => (
-            <button key={name} onClick={() => onAccent(name)} style={{
-              width:40, height:40, borderRadius:99, border: accent === color ? `2px solid ${theme.text}` : '2px solid transparent',
-              background:color, cursor:'pointer',
-              boxShadow: accent === color ? `0 0 0 3px ${theme.bg}, 0 0 0 5px ${color}` : 'none',
-            }}/>
-          ))}
         </div>
       </div>
     </div>
@@ -761,20 +751,22 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
   const [error, setError]           = React.useState(null);
   const [visibleCount, setVisible]  = React.useState(12);
   const lang = TCGDEX_LANG[identity?.language?.toUpperCase()] || 'fr';
+  const searchLangRef = React.useRef(lang);
 
   const doSearch = React.useCallback(async (name) => {
     setLoading(true); setError(null); setSelected(null); setAutoId(null); setVisible(12);
     try {
-      const { candidates: cands } = await apiFetch('/api/search', {
+      const { candidates: cands, lang: activeLang } = await apiFetch('/api/search', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ name, language: identity?.language || 'FR' }),
       });
+      searchLangRef.current = activeLang || lang;
       if (cands?.length) {
         const { match_id } = await apiFetch('/api/auto_match', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang }),
+          body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang: searchLangRef.current, set_name: identity?.set_name || null, set_code: identity?.set_code || null }),
         });
         // AI suggestion first, rest in original order
         const sorted = match_id
@@ -804,7 +796,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
       const report = await apiFetch('/api/report', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ card_id:selected, lang, front_image:frontB64, back_image:backB64 }),
+        body: JSON.stringify({ card_id:selected, lang: searchLangRef.current, front_image:frontB64, back_image:backB64 }),
       });
       onConfirm({ report, selectedId:selected });
     } catch (e) {
@@ -1513,10 +1505,9 @@ function BottomTabs({ tab, setTab, theme, accent }) {
 
 /* ── App ──────────────────────────────────────────────────────────────── */
 function App() {
-  const [dark, setDark]     = React.useState(true);
-  const [accentName, setAccentName] = React.useState('Gold');
+  const [dark, setDark] = React.useState(true);
   const theme  = THEMES[dark ? 'dark' : 'light'];
-  const accent = ACCENTS[accentName] || ACCENTS.Gold;
+  const accent = ACCENTS.Gold;
 
   const [screen, setScreen]     = React.useState('home');
   const [screenArgs, setArgs]   = React.useState({});
@@ -1678,7 +1669,7 @@ function App() {
       </div>
       <BottomTabs tab={tab} setTab={setTab} theme={theme} accent={accent}/>
       {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
-      {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onAccent={name => setAccentName(name)} onClose={() => setSettingsOpen(false)}/>}
+      {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)}/>}
       {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
     </div>
   );

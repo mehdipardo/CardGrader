@@ -100,50 +100,100 @@ async def search_cards(body: SearchRequest):
     """Search TCGdex by Pokémon name; return list of card stubs with images."""
     import httpx
 
-    lang = TCGDEX_LANG.get(body.language.upper(), "en")
+    primary_lang = TCGDEX_LANG.get(body.language.upper(), "en")
+
+    def _fetch_cards(lang: str, name: str) -> list:
+        try:
+            r = httpx.get(
+                f"https://api.tcgdex.net/v2/{lang}/cards",
+                params={"name": name},
+                timeout=10.0,
+            )
+            r.raise_for_status()
+            result = r.json()
+            return result if isinstance(result, list) else []
+        except Exception:
+            return []
+
+    candidates   = _fetch_cards(primary_lang, body.name)
+    active_lang  = primary_lang
+
+    # For non-FR/EN languages with few results, fall back to FR then EN.
+    # Old Japanese cards are not indexed by French name in the JA endpoint;
+    # the FR endpoint covers them because Claude vision returns French Pokémon names.
+    if len(candidates) < 3 and primary_lang not in ("fr", "en"):
+        for fb_lang in ("fr", "en"):
+            fb_cards = _fetch_cards(fb_lang, body.name)
+            if fb_cards:
+                existing_ids = {c.get("id") for c in candidates}
+                new_cards    = [c for c in fb_cards if c.get("id") not in existing_ids]
+                if new_cards:
+                    candidates  = candidates + new_cards
+                    active_lang = fb_lang
+                    break
+
+    if not candidates:
+        return {"candidates": [], "lang": active_lang}
+
+    # Fetch set list to enrich stubs with human-readable set name.
+    # TCGdex search stubs only carry {id, localId, name, image} — no set info.
+    # The card id format is "{setId}-{localId}", so we parse setId then look it up.
     try:
-        resp = httpx.get(
-            f"https://api.tcgdex.net/v2/{lang}/cards",
-            params={"name": body.name},
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        candidates = resp.json()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=502, detail=f"TCGdex error: {exc}")
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        sets_resp = httpx.get(f"https://api.tcgdex.net/v2/{active_lang}/sets", timeout=10.0)
+        sets_resp.raise_for_status()
+        set_map: dict[str, str] = {
+            s["id"]: s.get("name", s["id"])
+            for s in sets_resp.json()
+            if isinstance(s, dict) and "id" in s
+        }
+    except Exception:
+        set_map = {}
 
-    if not isinstance(candidates, list):
-        return {"candidates": [], "lang": lang}
+    for c in candidates:
+        card_id = c.get("id", "")
+        set_id  = card_id.split("-")[0] if "-" in card_id else ""
+        if set_id:
+            c["set"] = {"id": set_id, "name": set_map.get(set_id, set_id)}
 
-    # Compute auto-match suggestion
-    from src.tools.card_lookup import _number_matches, _extract_set_total
-
-    # We don't have the original number here — clients pass it separately via
-    # the number field in the identify response. Return raw stubs; the client
-    # or /api/auto_match can disambiguate.
-    return {"candidates": candidates, "lang": lang}
+    return {"candidates": candidates, "lang": active_lang}
 
 
 # ── POST /api/auto_match ───────────────────────────────────────────────────
 
 class AutoMatchRequest(BaseModel):
     candidates: list
-    number: str
-    lang: str = "fr"
+    number:    str
+    lang:      str = "fr"
+    set_name:  Optional[str] = None
+    set_code:  Optional[str] = None
+
+
+def _set_name_score(vision_set: str, card_set_name: str, card_set_id: str) -> int:
+    """Return a match score (higher = better) between vision set hint and TCGdex set."""
+    v = vision_set.lower()
+    n = card_set_name.lower()
+    i = card_set_id.lower()
+    if v == n or v == i:
+        return 3
+    # All significant words from vision_set appear in card set name/id
+    words = [w for w in v.split() if len(w) > 2]
+    if words and all(w in n or w in i for w in words):
+        return 2
+    # At least one word matches
+    if any(w in n or w in i for w in words):
+        return 1
+    return 0
 
 
 @app.post("/api/auto_match")
 async def auto_match(body: AutoMatchRequest):
     """Given search stubs + the vision number, return the best matching card id."""
     import httpx
-    import sys
     from src.tools.card_lookup import _number_matches, _extract_set_total
 
-    candidates  = body.candidates
-    number      = body.number
-    lang        = body.lang
+    candidates   = body.candidates
+    number       = body.number
+    lang         = body.lang
     total_in_set = _extract_set_total(number)
 
     local_matches = [
@@ -154,11 +204,13 @@ async def auto_match(body: AutoMatchRequest):
     if not local_matches:
         return {"match_id": None}
 
-    if len(local_matches) == 1 or total_in_set is None:
+    if len(local_matches) == 1:
         return {"match_id": local_matches[0]["id"]}
 
-    # Fetch full cards for disambiguation
-    perfect = acceptable = None
+    # Multiple matches — fetch full cards to disambiguate
+    perfect = acceptable = set_match = None
+    best_set_score = 0
+
     for stub in local_matches:
         cid = stub.get("id")
         try:
@@ -167,13 +219,31 @@ async def auto_match(body: AutoMatchRequest):
             full = resp.json()
         except Exception:
             continue
-        card_count = (full.get("set") or {}).get("cardCount") or {}
-        if card_count.get("official") == total_in_set:
-            return {"match_id": cid}
-        if card_count.get("total") == total_in_set and acceptable is None:
-            acceptable = cid
 
-    return {"match_id": acceptable or local_matches[0]["id"]}
+        card_count   = (full.get("set") or {}).get("cardCount") or {}
+        card_set_id  = (full.get("set") or {}).get("id", "")
+        card_set_name = (full.get("set") or {}).get("name", "")
+
+        # Priority 1: set total matches perfectly
+        if total_in_set is not None:
+            if card_count.get("official") == total_in_set:
+                return {"match_id": cid}
+            if card_count.get("total") == total_in_set and acceptable is None:
+                acceptable = cid
+
+        # Priority 2: set name / set_code hint from vision
+        hint = body.set_name or body.set_code or ""
+        if hint:
+            score = _set_name_score(hint, card_set_name, card_set_id)
+            if score > best_set_score:
+                best_set_score = score
+                set_match = cid
+
+    if acceptable:
+        return {"match_id": acceptable}
+    if set_match and best_set_score > 0:
+        return {"match_id": set_match}
+    return {"match_id": local_matches[0]["id"]}
 
 
 # ── GET /api/card/{card_id} ────────────────────────────────────────────────
