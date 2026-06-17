@@ -7,10 +7,11 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from src.auth import get_current_user
 
 load_dotenv()
 
@@ -339,6 +340,140 @@ class ListingRequest(BaseModel):
     platform: str
     language: str = "fr"
 
+
+# ── POST /api/auth/register ────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    pseudo:   str
+    email:    str
+    password: str
+
+
+@app.post("/api/auth/register")
+async def register(body: RegisterRequest):
+    from src.auth import hash_password, create_token, supabase_client
+
+    pseudo = body.pseudo.strip()
+    email  = body.email.strip().lower()
+
+    if len(pseudo) < 3:
+        raise HTTPException(400, "Le pseudo doit contenir au moins 3 caractères")
+    if len(body.password) < 6:
+        raise HTTPException(400, "Le mot de passe doit contenir au moins 6 caractères")
+    if not email or "@" not in email:
+        raise HTTPException(400, "Adresse email invalide")
+
+    db = supabase_client()
+
+    existing = db.table("users").select("id").eq("pseudo", pseudo).execute()
+    if existing.data:
+        raise HTTPException(409, "Ce pseudo est déjà pris")
+
+    existing_email = db.table("users").select("id").eq("email", email).execute()
+    if existing_email.data:
+        raise HTTPException(409, "Cet email est déjà utilisé")
+
+    result = db.table("users").insert({
+        "pseudo":        pseudo,
+        "email":         email,
+        "password_hash": hash_password(body.password),
+    }).execute()
+
+    if not result.data:
+        raise HTTPException(500, "Erreur lors de la création du compte")
+
+    user = result.data[0]
+    return {
+        "token":  create_token(user["id"], user["pseudo"]),
+        "pseudo": user["pseudo"],
+        "id":     user["id"],
+    }
+
+
+# ── POST /api/auth/login ───────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    pseudo:   str
+    password: str
+
+
+@app.post("/api/auth/login")
+async def login(body: LoginRequest):
+    from src.auth import verify_password, create_token, supabase_client
+
+    db     = supabase_client()
+    result = db.table("users").select("*").eq("pseudo", body.pseudo.strip()).execute()
+
+    if not result.data or not verify_password(body.password, result.data[0]["password_hash"]):
+        raise HTTPException(401, "Pseudo ou mot de passe incorrect")
+
+    user = result.data[0]
+    return {
+        "token":  create_token(user["id"], user["pseudo"]),
+        "pseudo": user["pseudo"],
+        "id":     user["id"],
+    }
+
+
+# ── GET /api/auth/me ───────────────────────────────────────────────────────
+
+@app.get("/api/auth/me")
+async def me(current_user: dict = Depends(get_current_user)):
+    return {"pseudo": current_user["pseudo"], "id": current_user["sub"]}
+
+
+# ── GET /api/collection (user) ─────────────────────────────────────────────
+
+@app.get("/api/collection")
+async def get_user_collection(current_user: dict = Depends(get_current_user)):
+    from src.auth import supabase_client
+
+    db     = supabase_client()
+    result = db.table("collection") \
+               .select("*") \
+               .eq("user_id", current_user["sub"]) \
+               .order("added_at") \
+               .execute()
+    return {"items": result.data or []}
+
+
+# ── POST /api/collection ───────────────────────────────────────────────────
+
+class CollectionAddRequest(BaseModel):
+    report: dict
+
+
+@app.post("/api/collection")
+async def add_collection_item(body: CollectionAddRequest, current_user: dict = Depends(get_current_user)):
+    from src.auth import supabase_client
+
+    db     = supabase_client()
+    result = db.table("collection").insert({
+        "user_id": current_user["sub"],
+        "report":  body.report,
+    }).execute()
+
+    if not result.data:
+        raise HTTPException(500, "Erreur lors de l'ajout à la collection")
+    return result.data[0]
+
+
+# ── DELETE /api/collection/{item_id} ──────────────────────────────────────
+
+@app.delete("/api/collection/{item_id}")
+async def delete_collection_item(item_id: str, current_user: dict = Depends(get_current_user)):
+    from src.auth import supabase_client
+
+    db = supabase_client()
+    db.table("collection") \
+      .delete() \
+      .eq("id", item_id) \
+      .eq("user_id", current_user["sub"]) \
+      .execute()
+    return {"ok": True}
+
+
+# ── POST /api/listing ──────────────────────────────────────────────────────
 
 @app.post("/api/listing")
 async def generate_listing(body: ListingRequest):

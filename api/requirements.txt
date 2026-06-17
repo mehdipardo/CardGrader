@@ -5,3 +5,6 @@ Pillow
 fastapi
 uvicorn[standard]
 python-multipart
+supabase
+passlib[bcrypt]
+PyJWT

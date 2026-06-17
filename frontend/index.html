@@ -42,8 +42,10 @@ const API_BASE = (window.location.hostname === 'localhost' || window.location.ho
   ? 'http://localhost:8000'
   : '';
 
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(API_BASE + path, opts);
+async function apiFetch(path, opts = {}, token = null) {
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API_BASE + path, { ...opts, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -168,6 +170,7 @@ const Icon = {
   ext:    p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><path d="M14 4h6v6M20 4l-9 9M10 6H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   plus:   p => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke={p.color||'currentColor'} strokeWidth="1.8" strokeLinecap="round"/></svg>,
   euro:   p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><path d="M17 6.5A6 6 0 0 0 7 12a6 6 0 0 0 10 5.5M4 10h9M4 14h9" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  user:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
   gear:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke={p.color||'currentColor'} strokeWidth="1.6"/></svg>,
 };
 
@@ -344,7 +347,7 @@ function Spinner({ size = 24, color = 'currentColor' }) {
 }
 
 /* ── TopBar ───────────────────────────────────────────────────────────── */
-function TopBar({ theme, accent, onSettings }) {
+function TopBar({ theme, accent, onSettings, authUser }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px 12px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -359,9 +362,16 @@ function TopBar({ theme, accent, onSettings }) {
           <div style={{ fontSize:11, color:theme.muted, marginTop:1 }}>Évaluation TCG · prix CardMarket</div>
         </div>
       </div>
-      <button onClick={onSettings} style={{ width:36, height:36, borderRadius:99, background:theme.surface, border:`1px solid ${theme.border}`, color:theme.text, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-        <Icon.gear size={18} color={theme.muted}/>
-      </button>
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        {authUser && (
+          <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:11, color:theme.muted, padding:'3px 8px', borderRadius:7, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+            @{authUser.pseudo}
+          </div>
+        )}
+        <button onClick={onSettings} style={{ width:36, height:36, borderRadius:99, background:theme.surface, border:`1px solid ${theme.border}`, color:theme.text, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+          <Icon.gear size={18} color={theme.muted}/>
+        </button>
+      </div>
     </div>
   );
 }
@@ -428,7 +438,7 @@ function SettingsSheet({ theme, accent, dark, onDark, onAccent, onClose }) {
 }
 
 /* ── DASHBOARD ────────────────────────────────────────────────────────── */
-function Dashboard({ theme, accent, collection, goTo, openSell }) {
+function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAuth, onLogout }) {
   const recent = collection.slice(-5).reverse();
   const total = collection.reduce((s, item) => {
     const v = item.report?.valuation?.estimated_value || 0;
@@ -547,6 +557,48 @@ function Dashboard({ theme, accent, collection, goTo, openSell }) {
               background:theme.text, color:theme.bg, cursor:'pointer',
               fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600,
             }}>Scanner</button>
+          )}
+        </div>
+      </div>
+
+      {/* ACCOUNT CTA */}
+      <div style={{ padding:'20px 16px 24px' }}>
+        <SectionHead theme={theme} title={authUser ? "Mon compte" : "Compte"} action=""/>
+        <div style={{
+          marginTop:10, padding:'14px', borderRadius:16,
+          border:`1px solid ${theme.borderS}`, background:theme.surface,
+          display:'flex', alignItems:'center', gap:12,
+        }}>
+          <div style={{ width:44, height:44, borderRadius:12, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center', color:accent }}>
+            <Icon.user size={20}/>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            {authUser ? (
+              <>
+                <div style={{ fontSize:13.5, fontWeight:500, color:theme.text, letterSpacing:'-0.01em' }}>@{authUser.pseudo}</div>
+                <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Collection synchronisée · cloud</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:13.5, fontWeight:500, color:theme.text, letterSpacing:'-0.01em' }}>Sauvegarde ta collection</div>
+                <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Profil · historique · multi-appareils</div>
+              </>
+            )}
+          </div>
+          {authUser ? (
+            <button onClick={onLogout} style={{
+              height:32, padding:'0 12px', borderRadius:99,
+              border:`1px solid ${theme.border}`,
+              background:'transparent', color:theme.muted, cursor:'pointer',
+              fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:500,
+            }}>Déconnecter</button>
+          ) : (
+            <button onClick={openAuth} style={{
+              height:32, padding:'0 14px', borderRadius:99, border:'none',
+              background:theme.text, color:theme.bg, cursor:'pointer',
+              fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600,
+              display:'flex', alignItems:'center', gap:4,
+            }}>Rejoindre <Icon.chev size={14}/></button>
           )}
         </div>
       </div>
@@ -1323,6 +1375,111 @@ function SellSheet({ theme, accent, item, onClose }) {
   );
 }
 
+/* ── AuthSheet ────────────────────────────────────────────────────────── */
+function AuthSheet({ theme, accent, onClose, onAuth }) {
+  const [mode, setMode]         = React.useState('login');
+  const [pseudo, setPseudo]     = React.useState('');
+  const [email, setEmail]       = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading]   = React.useState(false);
+  const [error, setError]       = React.useState(null);
+
+  const switchMode = m => { setMode(m); setError(null); };
+
+  const handleSubmit = async () => {
+    if (!pseudo.trim() || !password) { setError("Remplis tous les champs obligatoires."); return; }
+    if (mode === 'register' && !email.trim()) { setError("L'adresse email est obligatoire pour l'inscription."); return; }
+    setLoading(true); setError(null);
+    try {
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+      const payload  = mode === 'register'
+        ? { pseudo: pseudo.trim(), email: email.trim(), password }
+        : { pseudo: pseudo.trim(), password };
+      const result = await apiFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      onAuth(result);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    height:44, padding:'0 14px', borderRadius:12,
+    border:`1px solid ${theme.border}`, background:theme.surface,
+    color:theme.text, fontFamily:"'Geist', system-ui", fontSize:14,
+    outline:'none', width:'100%', boxSizing:'border-box',
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, padding:'12px 20px 40px', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
+
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+          <div style={{ width:36, height:4, borderRadius:99, background:theme.border }}/>
+        </div>
+
+        {/* Mode toggle */}
+        <div style={{ display:'flex', gap:4, marginBottom:22, padding:4, borderRadius:14, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+          {[['login','Connexion'],['register',"S'inscrire"]].map(([m, label]) => (
+            <button key={m} onClick={() => switchMode(m)} style={{
+              flex:1, height:36, borderRadius:10, border:'none', cursor:'pointer',
+              background: mode === m ? theme.bg : 'transparent',
+              color: mode === m ? theme.text : theme.muted,
+              fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600,
+              boxShadow: mode === m ? theme.elev1 : 'none',
+              transition:'background .15s',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            <span style={{ fontSize:11, color:theme.muted, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Pseudo</span>
+            <input value={pseudo} onChange={e => setPseudo(e.target.value)} placeholder="MonPseudo" autoCapitalize="none" style={inputStyle}/>
+          </label>
+
+          {mode === 'register' && (
+            <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+              <span style={{ fontSize:11, color:theme.muted, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Email</span>
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="moi@exemple.fr" style={inputStyle}/>
+              <span style={{ fontSize:11, color:theme.faint, lineHeight:1.4 }}>Utilisé uniquement pour récupérer ton compte si tu oublies ton pseudo ou mot de passe.</span>
+            </label>
+          )}
+
+          <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            <span style={{ fontSize:11, color:theme.muted, fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', textTransform:'uppercase' }}>Mot de passe</span>
+            <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="••••••••" style={inputStyle}/>
+          </label>
+
+          {error && (
+            <div style={{ padding:'10px 12px', borderRadius:10, background:`${GRADE.bad}18`, color:GRADE.bad, fontSize:12.5, lineHeight:1.4 }}>
+              {error}
+            </div>
+          )}
+
+          <button onClick={handleSubmit} disabled={loading} style={{
+            height:48, border:'none', borderRadius:14,
+            cursor: loading ? 'default' : 'pointer',
+            background: accent, color:'#fff',
+            fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+            opacity: loading ? 0.75 : 1, transition:'opacity .15s',
+          }}>
+            {loading
+              ? <><Spinner size={18} color="#fff"/> Chargement…</>
+              : mode === 'login' ? 'Se connecter' : "Créer mon compte"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── BottomTabs ───────────────────────────────────────────────────────── */
 function BottomTabs({ tab, setTab, theme, accent }) {
   const items = [
@@ -1361,26 +1518,40 @@ function App() {
   const theme  = THEMES[dark ? 'dark' : 'light'];
   const accent = ACCENTS[accentName] || ACCENTS.Gold;
 
-  const [screen, setScreen]   = React.useState('home');
-  const [screenArgs, setArgs] = React.useState({});
+  const [screen, setScreen]     = React.useState('home');
+  const [screenArgs, setArgs]   = React.useState({});
   const [sellOpen, setSellOpen] = React.useState(false);
   const [sellItem, setSellItem] = React.useState(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [authOpen, setAuthOpen] = React.useState(false);
 
   // scan flow state
   const [scanState, setScan] = React.useState({
     identity: null, frontFile: null, backFile: null, report: null,
   });
 
-  // collection: persisted in localStorage
+  // auth: persisted in localStorage
+  const [authUser, setAuthUser] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('pg_auth') || 'null'); }
+    catch { return null; }
+  });
+  const saveAuthUser = (u) => {
+    setAuthUser(u);
+    try {
+      if (u) localStorage.setItem('pg_auth', JSON.stringify(u));
+      else   localStorage.removeItem('pg_auth');
+    } catch {}
+  };
+
+  // collection: persisted in localStorage via effect
   const [collection, setCollection] = React.useState(() => {
     try { return JSON.parse(localStorage.getItem('pg_collection') || '[]'); }
     catch { return []; }
   });
-  const saveCollection = (c) => {
-    setCollection(c);
-    try { localStorage.setItem('pg_collection', JSON.stringify(c)); } catch {}
-  };
+  React.useEffect(() => {
+    try { localStorage.setItem('pg_collection', JSON.stringify(collection)); } catch {}
+  }, [collection]);
+  const saveCollection = setCollection;
 
   const goTo = (s, args = {}) => { setScreen(s); setArgs(args); };
   const openSell  = (item) => { setSellItem(item); setSellOpen(true); };
@@ -1388,14 +1559,14 @@ function App() {
 
   const tab = screen === 'home' ? 'home' : screen === 'collection' ? 'collection' : 'scan';
   const setTab = k => {
-    if (k === 'home')       goTo('home');
+    if (k === 'home')            goTo('home');
     else if (k === 'collection') goTo('collection');
-    else                    goTo('scan-upload', { mode:'upload' });
+    else                         goTo('scan-upload', { mode:'upload' });
   };
 
   const back = () => {
-    if (screen === 'scan-match')      goTo('scan-upload');
-    else if (screen === 'scan-report') goTo('home');
+    if (screen === 'scan-match')        goTo('scan-upload');
+    else if (screen === 'scan-report')  goTo('home');
     else if (screen === 'collection-item') goTo('collection');
     else goTo('home');
   };
@@ -1410,22 +1581,83 @@ function App() {
     goTo('scan-report');
   };
 
-  const handleAddToCollection = (report) => {
+  // On login/register success: sync local items to Supabase then reload
+  const handleAuth = async (user) => {
+    saveAuthUser(user);
+    setAuthOpen(false);
+    try {
+      // Upload any local-only items (no remoteId) to Supabase
+      const localOnly = collection.filter(i => !i.remoteId);
+      for (const li of localOnly) {
+        try {
+          const r = await apiFetch('/api/collection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ report: li.report }),
+          }, user.token);
+          // Update local item with Supabase id
+          saveCollection(prev => prev.map(x => x.id === li.id ? { ...x, id: r.id, remoteId: r.id } : x));
+        } catch {}
+      }
+      // Fetch final remote collection
+      const { items } = await apiFetch('/api/collection', {}, user.token);
+      const remoteItems = items.map(i => ({
+        id: i.id, remoteId: i.id,
+        addedAt: new Date(i.added_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }),
+        report: i.report,
+      }));
+      saveCollection(remoteItems);
+    } catch (e) {
+      console.warn('Collection sync failed:', e.message);
+    }
+  };
+
+  const handleLogout = () => {
+    saveAuthUser(null);
+    // Keep whatever is in localStorage, just mark items as local-only
+    const local = collection.map(i => ({ ...i, remoteId: undefined }));
+    saveCollection(local);
+  };
+
+  const handleAddToCollection = async (report) => {
+    const localId = String(Date.now());
     const newItem = {
-      id: Date.now(),
+      id: localId, remoteId: null,
       addedAt: new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }),
       report,
     };
-    saveCollection([...collection, newItem]);
+    const updated = [...collection, newItem];
+    saveCollection(updated);
+
+    if (authUser) {
+      try {
+        const r = await apiFetch('/api/collection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report }),
+        }, authUser.token);
+        saveCollection(c => c.map(x => x.id === localId ? { ...x, id: r.id, remoteId: r.id } : x));
+      } catch (e) {
+        console.warn('Remote add failed:', e.message);
+      }
+    }
   };
 
-  const handleRemove = (id) => {
+  const handleRemove = async (id) => {
+    const item = collection.find(i => i.id === id);
     saveCollection(collection.filter(i => i.id !== id));
+    if (authUser && item?.remoteId) {
+      try {
+        await apiFetch(`/api/collection/${item.remoteId}`, { method:'DELETE' }, authUser.token);
+      } catch (e) {
+        console.warn('Remote delete failed:', e.message);
+      }
+    }
   };
 
   let content;
   if (screen === 'home') {
-    content = <Dashboard theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell}/>;
+    content = <Dashboard theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} authUser={authUser} openAuth={() => setAuthOpen(true)} onLogout={handleLogout}/>;
   } else if (screen === 'scan-upload') {
     content = <ScanUpload theme={theme} accent={accent} back={back} mode={screenArgs.mode||'upload'} onAnalyze={handleAnalyze}/>;
   } else if (screen === 'scan-match') {
@@ -1440,13 +1672,14 @@ function App() {
 
   return (
     <div style={{ background:theme.bg, minHeight:'100dvh', display:'flex', flexDirection:'column', color:theme.text }}>
-      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)}/>
+      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)} authUser={authUser}/>
       <div style={{ flex:1, overflow:'hidden', position:'relative', display:'flex', flexDirection:'column' }}>
         {content}
       </div>
       <BottomTabs tab={tab} setTab={setTab} theme={theme} accent={accent}/>
-      {sellOpen && <SellSheet theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
+      {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
       {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onAccent={name => setAccentName(name)} onClose={() => setSettingsOpen(false)}/>}
+      {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
     </div>
   );
 }
