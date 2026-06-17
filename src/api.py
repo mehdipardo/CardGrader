@@ -100,28 +100,46 @@ async def search_cards(body: SearchRequest):
     """Search TCGdex by Pokémon name; return list of card stubs with images."""
     import httpx
 
-    lang = TCGDEX_LANG.get(body.language.upper(), "en")
-    try:
-        resp = httpx.get(
-            f"https://api.tcgdex.net/v2/{lang}/cards",
-            params={"name": body.name},
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        candidates = resp.json()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=502, detail=f"TCGdex error: {exc}")
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+    primary_lang = TCGDEX_LANG.get(body.language.upper(), "en")
 
-    if not isinstance(candidates, list):
-        return {"candidates": [], "lang": lang}
+    def _fetch_cards(lang: str, name: str) -> list:
+        try:
+            r = httpx.get(
+                f"https://api.tcgdex.net/v2/{lang}/cards",
+                params={"name": name},
+                timeout=10.0,
+            )
+            r.raise_for_status()
+            result = r.json()
+            return result if isinstance(result, list) else []
+        except Exception:
+            return []
+
+    candidates   = _fetch_cards(primary_lang, body.name)
+    active_lang  = primary_lang
+
+    # For non-FR/EN languages with few results, fall back to FR then EN.
+    # Old Japanese cards are not indexed by French name in the JA endpoint;
+    # the FR endpoint covers them because Claude vision returns French Pokémon names.
+    if len(candidates) < 3 and primary_lang not in ("fr", "en"):
+        for fb_lang in ("fr", "en"):
+            fb_cards = _fetch_cards(fb_lang, body.name)
+            if fb_cards:
+                existing_ids = {c.get("id") for c in candidates}
+                new_cards    = [c for c in fb_cards if c.get("id") not in existing_ids]
+                if new_cards:
+                    candidates  = candidates + new_cards
+                    active_lang = fb_lang
+                    break
+
+    if not candidates:
+        return {"candidates": [], "lang": active_lang}
 
     # Fetch set list to enrich stubs with human-readable set name.
     # TCGdex search stubs only carry {id, localId, name, image} — no set info.
     # The card id format is "{setId}-{localId}", so we parse setId then look it up.
     try:
-        sets_resp = httpx.get(f"https://api.tcgdex.net/v2/{lang}/sets", timeout=10.0)
+        sets_resp = httpx.get(f"https://api.tcgdex.net/v2/{active_lang}/sets", timeout=10.0)
         sets_resp.raise_for_status()
         set_map: dict[str, str] = {
             s["id"]: s.get("name", s["id"])
@@ -137,7 +155,7 @@ async def search_cards(body: SearchRequest):
         if set_id:
             c["set"] = {"id": set_id, "name": set_map.get(set_id, set_id)}
 
-    return {"candidates": candidates, "lang": lang}
+    return {"candidates": candidates, "lang": active_lang}
 
 
 # ── POST /api/auto_match ───────────────────────────────────────────────────

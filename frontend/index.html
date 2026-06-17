@@ -751,20 +751,22 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
   const [error, setError]           = React.useState(null);
   const [visibleCount, setVisible]  = React.useState(12);
   const lang = TCGDEX_LANG[identity?.language?.toUpperCase()] || 'fr';
+  const searchLangRef = React.useRef(lang);
 
   const doSearch = React.useCallback(async (name) => {
     setLoading(true); setError(null); setSelected(null); setAutoId(null); setVisible(12);
     try {
-      const { candidates: cands } = await apiFetch('/api/search', {
+      const { candidates: cands, lang: activeLang } = await apiFetch('/api/search', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ name, language: identity?.language || 'FR' }),
       });
+      searchLangRef.current = activeLang || lang;
       if (cands?.length) {
         const { match_id } = await apiFetch('/api/auto_match', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang, set_name: identity?.set_name || null, set_code: identity?.set_code || null }),
+          body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang: searchLangRef.current, set_name: identity?.set_name || null, set_code: identity?.set_code || null }),
         });
         // AI suggestion first, rest in original order
         const sorted = match_id
@@ -794,7 +796,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
       const report = await apiFetch('/api/report', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ card_id:selected, lang, front_image:frontB64, back_image:backB64 }),
+        body: JSON.stringify({ card_id:selected, lang: searchLangRef.current, front_image:frontB64, back_image:backB64 }),
       });
       onConfirm({ report, selectedId:selected });
     } catch (e) {
