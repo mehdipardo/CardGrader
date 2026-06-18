@@ -1588,7 +1588,7 @@ function AuthSheet({ theme, accent, onClose, onAuth }) {
 }
 
 /* ── TutorialOverlay ─────────────────────────────────────────────────── */
-function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, openAuth }) {
+function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, openAuth, onExplore }) {
   const [spotRect, setSpotRect] = React.useState(null);
   const [confirmSkip, setConfirmSkip] = React.useState(false);
   const bubbleRef = React.useRef(null);
@@ -1742,10 +1742,13 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
 
             {current.isFinal ? (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                <button onClick={openAuth} style={{ height:44, border:'none', borderRadius:12, background:accent, color:'#fff', fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  <Icon.user size={16} color="#fff"/> Créer un compte
+                <button onClick={onExplore} style={{ height:44, border:'none', borderRadius:12, background:accent, color:'#fff', fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  Explorer le sandbox <Icon.chev size={15} color="#fff"/>
                 </button>
-                <button onClick={onComplete} style={{ height:44, border:`1px solid ${theme.border}`, borderRadius:12, background:'transparent', color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:500, cursor:'pointer' }}>
+                <button onClick={openAuth} style={{ height:40, border:`1px solid ${theme.border}`, borderRadius:12, background:'transparent', color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                  <Icon.user size={14}/> Créer un compte
+                </button>
+                <button onClick={onComplete} style={{ height:34, border:'none', borderRadius:10, background:'transparent', color:theme.faint, fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:400, cursor:'pointer' }}>
                   Continuer en mode invité
                 </button>
               </div>
@@ -1776,6 +1779,51 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
         )}
       </div>
     </>
+  );
+}
+
+/* ── SandboxBanner ───────────────────────────────────────────────────── */
+function SandboxBanner({ theme, accent, onAuth, onGuest }) {
+  const [expanded, setExpanded] = React.useState(false);
+  return (
+    <div style={{
+      position:'fixed', bottom:0, left:0, right:0, zIndex:800,
+      background: theme.surface,
+      borderTop: `1px solid ${theme.borderS}`,
+      backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)',
+      padding: expanded ? '16px 20px 20px' : '10px 16px',
+      display:'flex', flexDirection:'column', gap:10,
+      boxShadow:'0 -4px 24px rgba(0,0,0,0.12)',
+      transition:'padding .2s',
+    }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:9, padding:'2px 7px', borderRadius:4, letterSpacing:'0.12em', background:`${GRADE.mid}22`, color:GRADE.mid, fontWeight:700, whiteSpace:'nowrap' }}>MODE DEMO</span>
+          <span style={{ fontSize:12.5, color:theme.muted, lineHeight:1.4 }}>
+            Tu explores une collection exemple.
+          </span>
+        </div>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{ background:'none', border:'none', cursor:'pointer', color:theme.faint, padding:'4px 6px', borderRadius:6, flexShrink:0, fontSize:12, fontFamily:"'Geist', system-ui" }}
+        >
+          {expanded ? '✕' : 'Rejoindre →'}
+        </button>
+      </div>
+      {expanded && (
+        <div style={{ display:'flex', flexDirection:'column', gap:8, animation:'pgFade .2s ease' }}>
+          <p style={{ margin:0, fontSize:13, color:theme.muted, lineHeight:1.55 }}>
+            Crée un compte pour sauvegarder ta vraie collection, ou continue en mode invité.
+          </p>
+          <button onClick={onAuth} style={{ height:44, border:'none', borderRadius:12, background:accent, color:'#fff', fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+            <Icon.user size={16} color="#fff"/> Créer un compte
+          </button>
+          <button onClick={onGuest} style={{ height:40, border:`1px solid ${theme.border}`, borderRadius:12, background:'transparent', color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            Continuer en mode invité
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1844,6 +1892,7 @@ function App() {
   const [tutorialActive,  setTutorialActive]  = React.useState(false);
   const [tutorialStep,    setTutorialStep]     = React.useState(1);
   const [tutorialExiting, setTutorialExiting]  = React.useState(false);
+  const [sandboxMode,     setSandboxMode]      = React.useState(false);
 
   React.useEffect(() => {
     const done = localStorage.getItem('tutorial_completed');
@@ -1852,6 +1901,23 @@ function App() {
       setScreen('home');
     }
   }, []);
+
+  const enterSandboxMode = () => {
+    setTutorialActive(false);
+    setSandboxMode(true);
+    setScreen('home');
+    setArgs({});
+  };
+
+  const exitSandbox = (thenOpenAuth = false) => {
+    localStorage.setItem('tutorial_completed', 'true');
+    setSandboxMode(false);
+    setTutorialExiting(true);
+    setTimeout(() => {
+      setTutorialExiting(false);
+      if (thenOpenAuth) setAuthOpen(true);
+    }, 2500);
+  };
 
   const exitTutorial = (thenOpenAuth = false) => {
     localStorage.setItem('tutorial_completed', 'true');
@@ -1863,10 +1929,11 @@ function App() {
     }, 2500);
   };
 
-  const completeTutorial  = () => exitTutorial(false);
+  const completeTutorial     = () => exitTutorial(false);
   const completeTutorialAuth = () => exitTutorial(true);
-  const skipTutorial       = () => exitTutorial(false);
-  const nextTutorialStep   = () => setTutorialStep(s => Math.min(s + 1, 8));
+  const skipTutorial         = () => enterSandboxMode();
+  const exploreSandbox       = () => enterSandboxMode();
+  const nextTutorialStep     = () => setTutorialStep(s => Math.min(s + 1, 8));
   const replayTutorial     = () => {
     localStorage.setItem('tutorial_completed', 'false');
     window.location.reload();
@@ -2017,11 +2084,12 @@ function App() {
     }
   };
 
-  const activeCollection = tutorialActive ? DEMO_COLLECTION : collection;
+  const demoMode = tutorialActive || sandboxMode;
+  const activeCollection = demoMode ? DEMO_COLLECTION : collection;
 
   let content;
   if (screen === 'home') {
-    content = <Dashboard theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} authUser={authUser} openAuth={() => setAuthOpen(true)} onLogout={handleLogout} tutorialActive={tutorialActive}/>;
+    content = <Dashboard theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} authUser={authUser} openAuth={() => setAuthOpen(true)} onLogout={handleLogout} tutorialActive={demoMode}/>;
   } else if (screen === 'scan-upload') {
     content = <ScanUpload theme={theme} accent={accent} back={back} mode={screenArgs.mode||'upload'} onAnalyze={handleAnalyze}/>;
   } else if (screen === 'scan-match') {
@@ -2029,14 +2097,14 @@ function App() {
   } else if (screen === 'scan-report') {
     content = <ScanReport theme={theme} accent={accent} report={scanState.report} back={back} goTo={goTo} onAdd={handleAddToCollection} openSell={openSell}/>;
   } else if (screen === 'collection') {
-    content = <Collection theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} onRemove={handleRemove} tutorialActive={tutorialActive}/>;
+    content = <Collection theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} onRemove={handleRemove} tutorialActive={demoMode}/>;
   } else if (screen === 'collection-item') {
     content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell}/>;
   }
 
   return (
     <div style={{ background:theme.bg, minHeight:'100dvh', display:'flex', flexDirection:'column', color:theme.text }}>
-      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)} authUser={authUser} tutorialActive={tutorialActive}/>
+      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)} authUser={authUser} tutorialActive={demoMode}/>
       <div style={{ flex:1, overflow:'hidden', position:'relative', display:'flex', flexDirection:'column' }}>
         {content}
       </div>
@@ -2053,8 +2121,10 @@ function App() {
           onSkip={skipTutorial}
           onComplete={completeTutorial}
           openAuth={completeTutorialAuth}
+          onExplore={exploreSandbox}
         />
       )}
+      {sandboxMode && <SandboxBanner theme={theme} accent={accent} onAuth={() => exitSandbox(true)} onGuest={() => exitSandbox(false)}/>}
       {tutorialExiting && <TutorialExitOverlay theme={theme}/>}
     </div>
   );
