@@ -88,6 +88,7 @@ async def identify(front: UploadFile = File(...)):
 class SearchRequest(BaseModel):
     name: str
     language: str = "FR"
+    number: Optional[str] = None  # Used to prioritise JA↔FR conversion by localId
 
 
 TCGDEX_LANG: dict[str, str] = {
@@ -119,18 +120,58 @@ async def search_cards(body: SearchRequest):
     active_lang  = primary_lang
 
     # For non-FR/EN languages with few results, fall back to FR then EN.
-    # Old Japanese cards are not indexed by French name in the JA endpoint;
-    # the FR endpoint covers them because Claude vision returns French Pokémon names.
+    # Old Japanese cards are only indexed by their Japanese name in the JA endpoint;
+    # searching "Aspicot" finds nothing there for the 1996 Base Set, but the FR
+    # endpoint has those cards.  Once we find a FR card (e.g. base1-013) we then
+    # try to fetch the JA version at the same ID — TCGdex uses consistent card IDs
+    # across languages — so the user gets the Japanese version when available.
     if len(candidates) < 3 and primary_lang not in ("fr", "en"):
+        from src.tools.card_lookup import _number_matches as _nm
         for fb_lang in ("fr", "en"):
             fb_cards = _fetch_cards(fb_lang, body.name)
-            if fb_cards:
-                existing_ids = {c.get("id") for c in candidates}
-                new_cards    = [c for c in fb_cards if c.get("id") not in existing_ids]
-                if new_cards:
-                    candidates  = candidates + new_cards
-                    active_lang = fb_lang
-                    break
+            if not fb_cards:
+                continue
+            existing_ids = {c.get("id") for c in candidates}
+            new_cards    = [c for c in fb_cards if c.get("id") not in existing_ids]
+            if not new_cards:
+                continue
+
+            # For JA primary: try to get the JA version of each new FR card.
+            # Prioritise cards whose localId matches the vision number hint.
+            if primary_lang == "ja":
+                num      = body.number or ""
+                priority = ([c for c in new_cards if _nm(num, str(c.get("localId") or ""))]
+                            if num else new_cards[:5])
+                rest     = ([c for c in new_cards if not _nm(num, str(c.get("localId") or ""))]
+                            if num else new_cards[5:])
+
+                ja_converted: list = []
+                for fb_card in priority[:5]:
+                    cid = fb_card.get("id", "")
+                    try:
+                        r = httpx.get(
+                            f"https://api.tcgdex.net/v2/ja/cards/{cid}", timeout=5.0
+                        )
+                        if r.status_code == 200:
+                            ja_data = r.json()
+                            ja_converted.append({
+                                "id":      cid,
+                                "localId": ja_data.get("localId") or fb_card.get("localId"),
+                                "name":    ja_data.get("name")    or fb_card.get("name"),
+                                "image":   ja_data.get("image")   or fb_card.get("image"),
+                            })
+                        else:
+                            ja_converted.append(fb_card)  # Keep FR stub as fallback
+                    except Exception:
+                        ja_converted.append(fb_card)
+
+                new_cards   = ja_converted + rest
+                active_lang = primary_lang  # Stay JA; JA-converted cards use JA data
+            else:
+                active_lang = fb_lang
+
+            candidates = candidates + new_cards
+            break
 
     if not candidates:
         return {"candidates": [], "lang": active_lang}
@@ -313,23 +354,32 @@ async def full_report(body: ReportRequest):
     from src.models.card import CardIdentity
     from src.tools.pricing import PricingTool
 
-    # Fetch the full TCGdex card
-    try:
-        resp = httpx.get(
-            f"https://api.tcgdex.net/v2/{body.lang}/cards/{body.card_id}",
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        tcgdex_card = resp.json()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"TCGdex fetch failed: {exc}")
+    # Fetch the full TCGdex card.  Try the requested lang first; fall back to fr
+    # then en so old Japanese-only sets (which may not exist in the JA endpoint
+    # under a searchable name) can still produce a report.
+    tcgdex_card = None
+    lang_used   = body.lang
+    for try_lang in (body.lang, "fr", "en"):
+        try:
+            resp = httpx.get(
+                f"https://api.tcgdex.net/v2/{try_lang}/cards/{body.card_id}",
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            tcgdex_card = resp.json()
+            lang_used   = try_lang
+            break
+        except Exception:
+            pass
+    if tcgdex_card is None:
+        raise HTTPException(status_code=502, detail=f"TCGdex card '{body.card_id}' not found in any language")
 
     # Build CardIdentity from TCGdex data
     set_info = tcgdex_card.get("set") or {}
     identity = CardIdentity(
         name=tcgdex_card.get("name", ""),
         number=tcgdex_card.get("localId", ""),
-        language=body.lang.upper(),
+        language=lang_used.upper(),
         set_name=set_info.get("name", ""),
         set_code=set_info.get("id", "").split("-")[0] or None,
         rarity=tcgdex_card.get("rarity"),
