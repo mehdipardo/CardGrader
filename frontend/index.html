@@ -151,6 +151,29 @@ const PLATFORMS = [
   { id: 'cardmarket',name: 'CardMarket',     tone: 'expert',      color: '#012169', url: 'https://www.cardmarket.com/fr/Pokemon/PostProduct' },
 ];
 
+/* ── Sandbox demo collection ──────────────────────────────────────────── */
+const SANDBOX_COLLECTION = [
+  { id:'sandbox-1', remoteId:null, addedAt:'01 juin', is_sandbox:true, report:{ identity:{ name:'Tortank', number:'2/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', image:'https://assets.tcgdex.net/fr/base/base1/2' }, condition:{ centering:5.5, corners:2.5, edges:3.0, surface:3.5, overall_score:3.4, confidence:0.82 }, pricing:{ raw_price:145, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:145, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:111, value_range_low:92, value_range_high:130, confidence_score:0.82 } } },
+  { id:'sandbox-2', remoteId:null, addedAt:'02 juin', is_sandbox:true, report:{ identity:{ name:'Dracaufeu', number:'4/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', image:'https://assets.tcgdex.net/fr/base/base1/4' }, condition:{ centering:7.0, corners:6.0, edges:6.5, surface:7.0, overall_score:6.5, confidence:0.88 }, pricing:{ raw_price:280, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:280, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:210, value_range_low:180, value_range_high:240, confidence_score:0.88 } } },
+  { id:'sandbox-3', remoteId:null, addedAt:'03 juin', is_sandbox:true, report:{ identity:{ name:'Pikachu', number:'025', language:'JP', set_name:'CoroCoro Promo', set_code:'promo', rarity:'Promo', image:'https://assets.tcgdex.net/ja/promo/dp/DP33' }, condition:{ centering:8.0, corners:7.5, edges:7.8, surface:8.0, overall_score:7.8, confidence:0.85 }, pricing:{ raw_price:95, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:95, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:85, value_range_low:72, value_range_high:98, confidence_score:0.85 } } },
+  { id:'sandbox-4', remoteId:null, addedAt:'04 juin', is_sandbox:true, report:{ identity:{ name:'Charizard ex', number:'199/198', language:'EN', set_name:'Scarlet & Violet 151', set_code:'sv3pt5', rarity:'Special Illustration Rare', image:'https://assets.tcgdex.net/en/sv/sv3pt5/199' }, condition:{ centering:9.0, corners:9.5, edges:9.2, surface:9.0, overall_score:9.2, confidence:0.92 }, pricing:{ raw_price:180, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:180, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:165, value_range_low:150, value_range_high:180, confidence_score:0.92 } } },
+  { id:'sandbox-5', remoteId:null, addedAt:'05 juin', is_sandbox:true, report:{ identity:{ name:'Dracaufeu ex', number:'6/165', language:'FR', set_name:'Écarlate et Violet 151', set_code:'sv3pt5', rarity:'Double Rare', image:'https://assets.tcgdex.net/fr/sv/sv3pt5/6' }, condition:{ centering:8.2, corners:8.0, edges:8.5, surface:8.1, overall_score:8.1, confidence:0.87 }, pricing:{ raw_price:65, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:65, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:55, value_range_low:48, value_range_high:62, confidence_score:0.87 } } },
+  { id:'sandbox-6', remoteId:null, addedAt:'06 juin', is_sandbox:true, report:{ identity:{ name:'Magicarpe', number:'60/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Commune', image:'https://assets.tcgdex.net/fr/base/base1/60' }, condition:{ centering:3.5, corners:2.0, edges:2.5, surface:3.0, overall_score:2.8, confidence:0.80 }, pricing:{ raw_price:4, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:4, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:3, value_range_low:2, value_range_high:4, confidence_score:0.80 } } },
+  { id:'sandbox-7', remoteId:null, addedAt:'07 juin', is_sandbox:true, report:{ identity:{ name:'Alakazam', number:'1/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', image:'https://assets.tcgdex.net/fr/base/base1/1' }, condition:{ centering:9.0, corners:9.2, edges:9.1, surface:9.0, overall_score:9.1, confidence:0.91 }, pricing:{ raw_price:55, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:55, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:45, value_range_low:40, value_range_high:52, confidence_score:0.91 } } },
+  { id:'sandbox-8', remoteId:null, addedAt:'08 juin', is_sandbox:true, report:{ identity:{ name:'Mewtwo GX', number:'SV59/SV94', language:'EN', set_name:'Hidden Fates: Shiny Vault', set_code:'sma', rarity:'Shiny Rare GX', image:'https://assets.tcgdex.net/en/sm/sma/SV59' }, condition:{ centering:7.0, corners:7.5, edges:7.2, surface:7.3, overall_score:7.2, confidence:0.84 }, pricing:{ raw_price:600, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:600, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:480, value_range_low:420, value_range_high:540, confidence_score:0.84 } } },
+  { id:'sandbox-9', remoteId:null, addedAt:'09 juin', is_sandbox:true, report:{ identity:{ name:'Pikachu V', number:'43/185', language:'FR', set_name:'Épée et Bouclier', set_code:'swsh1', rarity:'Rare Ultra', image:'https://assets.tcgdex.net/fr/swsh/swsh1/43' }, condition:{ centering:4.5, corners:4.0, edges:5.0, surface:4.5, overall_score:4.5, confidence:0.78 }, pricing:{ raw_price:6, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:6, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:5, value_range_low:4, value_range_high:6, confidence_score:0.78 } } },
+  { id:'sandbox-10', remoteId:null, addedAt:'10 juin', is_sandbox:true, report:{ identity:{ name:'Ronflex', number:'36/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare', image:'https://assets.tcgdex.net/fr/base/base1/36' }, condition:{ centering:5.5, corners:5.8, edges:5.2, surface:5.8, overall_score:5.6, confidence:0.81 }, pricing:{ raw_price:28, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:28, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:25, value_range_low:20, value_range_high:30, confidence_score:0.81 } } },
+];
+
+const TUTORIAL_STEPS = [
+  { id:'welcome', title:'Bienvenue sur PokéGrader 🎴', text:"Estime, suis et vends tes cartes Pokémon TCG avec l'intelligence artificielle. Voici un tour rapide en 60 secondes.", target:null },
+  { id:'stats',   title:'Ta collection en un coup d\'œil', text:'Valeur totale, nombre de cartes, scans récents — tout est mis à jour automatiquement.', target:'tutorial-stats' },
+  { id:'card',    title:'Chaque carte est évaluée par l\'IA', text:'Score d\'état, prix estimé selon CardMarket, et possibilité de vendre en un clic.', target:'tutorial-recent-card' },
+  { id:'scan',    title:'Scanne tes propres cartes', text:'Prends une photo recto + verso, l\'IA identifie la carte et évalue son état en quelques secondes.', target:'tutorial-scan-cta' },
+  { id:'sell',    title:'Vends en un clic', text:'L\'IA rédige une annonce optimisée pour Vinted, eBay, CardMarket et autres plateformes.', target:'tutorial-sell-section' },
+  { id:'finish',  title:'Prêt à commencer ?', text:'Crée un compte pour sauvegarder ta collection dans le temps, ou continue en mode invité pour tester.', target:null },
+];
+
 /* ── Icons ────────────────────────────────────────────────────────────── */
 const Icon = {
   home:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinejoin="round"/></svg>,
@@ -347,7 +370,7 @@ function Spinner({ size = 24, color = 'currentColor' }) {
 }
 
 /* ── TopBar ───────────────────────────────────────────────────────────── */
-function TopBar({ theme, accent, onSettings, authUser }) {
+function TopBar({ theme, accent, onSettings, authUser, sandboxMode }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px 12px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -357,7 +380,10 @@ function TopBar({ theme, accent, onSettings, authUser }) {
         <div style={{ lineHeight:1.1 }}>
           <div style={{ fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:17, letterSpacing:'-0.02em', color:theme.text, display:'flex', alignItems:'center', gap:7 }}>
             PokéGrader
-            <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, padding:'2px 6px', borderRadius:4, letterSpacing:'0.1em', background:`${accent}1f`, color:accent, fontWeight:600 }}>BETA</span>
+            {sandboxMode
+              ? <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, padding:'2px 6px', borderRadius:4, letterSpacing:'0.1em', background:'rgba(212,175,55,0.2)', color:'#d4af37', fontWeight:600 }}>MODE DÉMO</span>
+              : <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, padding:'2px 6px', borderRadius:4, letterSpacing:'0.1em', background:`${accent}1f`, color:accent, fontWeight:600 }}>BETA</span>
+            }
           </div>
           <div style={{ fontSize:11, color:theme.muted, marginTop:1 }}>Évaluation TCG · prix CardMarket</div>
         </div>
@@ -400,7 +426,7 @@ function ScanHeader({ theme, step, back }) {
 }
 
 /* ── SettingsSheet ────────────────────────────────────────────────────── */
-function SettingsSheet({ theme, accent, dark, onDark, onClose }) {
+function SettingsSheet({ theme, accent, dark, onDark, onClose, onRestart }) {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, padding:'12px 20px 40px', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
@@ -422,13 +448,22 @@ function SettingsSheet({ theme, accent, dark, onDark, onClose }) {
             }}/>
           </button>
         </div>
+        <div style={{ height:1, background:theme.borderS, margin:'20px 0 16px' }}/>
+        <button onClick={onRestart} style={{
+          width:'100%', height:40, borderRadius:12, border:`1px solid ${theme.border}`,
+          background:'transparent', color:theme.muted,
+          fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:500, cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+        }}>
+          <Icon.spark size={13} color={theme.muted}/> Refaire le tutoriel
+        </button>
       </div>
     </div>
   );
 }
 
 /* ── DASHBOARD ────────────────────────────────────────────────────────── */
-function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAuth, onLogout }) {
+function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAuth, onLogout, isSandbox }) {
   const recent = collection.slice(-5).reverse();
   const total = collection.reduce((s, item) => {
     const v = item.report?.valuation?.estimated_value || 0;
@@ -438,7 +473,7 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
   return (
     <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
       {/* HERO CTA */}
-      <div style={{ padding:'0 16px' }}>
+      <div id="tutorial-scan-cta" style={{ padding:'0 16px' }}>
         <div style={{
           borderRadius:20, overflow:'hidden', position:'relative',
           background:`linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 60%, #000))`,
@@ -474,7 +509,7 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
       </div>
 
       {/* STATS */}
-      <div style={{ display:'flex', gap:8, padding:'14px 16px 4px' }}>
+      <div id="tutorial-stats" style={{ display:'flex', gap:8, padding:'14px 16px 4px' }}>
         <StatTile theme={theme} label="Cartes"       value={collection.length} sub="dans ma collection"/>
         <StatTile theme={theme} label="Valeur"       value={`€ ${Math.round(total)}`} sub="estimation actuelle"/>
       </div>
@@ -486,14 +521,14 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
             <SectionHead theme={theme} title="Derniers scans" action=""/>
           </div>
           <div style={{ display:'flex', gap:10, padding:'0 16px 4px', overflowX:'auto', scrollbarWidth:'none' }}>
-            {recent.map(item => {
+            {recent.map((item, idx) => {
               const r = item.report;
               const id = item.identity || r?.identity || {};
               const score = r?.condition?.overall_score || 0;
               const est = r?.valuation?.estimated_value || 0;
               const imgUrl = id.image || r?.identity?.image;
               return (
-                <button key={item.id} onClick={() => goTo('scan-report', { collectionItem: item })} style={{
+                <button key={item.id} id={idx === 0 ? 'tutorial-recent-card' : undefined} onClick={() => goTo('scan-report', { collectionItem: item })} style={{
                   flex:'0 0 132px', textAlign:'left', cursor:'pointer',
                   border:`1px solid ${theme.borderS}`, borderRadius:14,
                   background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:8,
@@ -520,7 +555,7 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
       )}
 
       {/* SELL CTA */}
-      <div style={{ padding:'20px 16px 6px' }}>
+      <div id="tutorial-sell-section" style={{ padding:'20px 16px 6px' }}>
         <SectionHead theme={theme} title="Vendre une carte" action=""/>
         <div style={{
           marginTop:10, padding:'14px', borderRadius:16,
@@ -1106,7 +1141,7 @@ function CollectionReport({ theme, accent, item, back, openSell }) {
 }
 
 /* ── Collection ───────────────────────────────────────────────────────── */
-function Collection({ theme, accent, collection, goTo, openSell, onRemove }) {
+function Collection({ theme, accent, collection, goTo, openSell, onRemove, isSandbox }) {
   const [sort, setSort] = React.useState('date');
   const items = [...collection];
   items.sort((a, b) => {
@@ -1179,9 +1214,9 @@ function Collection({ theme, accent, collection, goTo, openSell, onRemove }) {
                 </div>
                 <div style={{ display:'flex', gap:6 }}>
                   <button onClick={() => openSell(item)} style={{ flex:1, height:28, border:'none', borderRadius:8, cursor:'pointer', background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:11.5, fontWeight:600 }}>Vendre</button>
-                  <button title="Retirer" onClick={() => onRemove(item.id)} style={{ width:28, height:28, border:`1px solid ${theme.border}`, borderRadius:8, background:theme.surface, color:theme.muted, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  {!isSandbox && <button title="Retirer" onClick={() => onRemove(item.id)} style={{ width:28, height:28, border:`1px solid ${theme.border}`, borderRadius:8, background:theme.surface, color:theme.muted, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
                     <Icon.trash size={14}/>
-                  </button>
+                  </button>}
                 </div>
               </div>
             );
@@ -1472,6 +1507,102 @@ function AuthSheet({ theme, accent, onClose, onAuth }) {
   );
 }
 
+/* ── TutorialOverlay ──────────────────────────────────────────────────── */
+function TutorialOverlay({ theme, accent, step, onNext, onSkip, onFinish, onOpenAuth }) {
+  const s = TUTORIAL_STEPS[step];
+  const [rect, setRect]         = React.useState(null);
+  const [skipConfirm, setSkip]  = React.useState(false);
+  const isFirst = step === 0;
+  const isLast  = step === TUTORIAL_STEPS.length - 1;
+  const PAD = 10;
+
+  React.useEffect(() => {
+    setRect(null);
+    if (!s?.target) return;
+    const measure = () => {
+      const el = document.getElementById(s.target);
+      if (el) { const r = el.getBoundingClientRect(); setRect({ left:r.left, top:r.top, w:r.width, h:r.height }); }
+    };
+    measure();
+    const t = setTimeout(measure, 120);
+    return () => clearTimeout(t);
+  }, [step]);
+
+  React.useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') setSkip(true); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, []);
+
+  const vH = window.innerHeight;
+  let bubblePos = {};
+  if (rect) {
+    const below = vH - (rect.top + rect.h + PAD);
+    if (below >= 180 || below >= rect.top) bubblePos = { top: rect.top + rect.h + PAD + 12 };
+    else                                   bubblePos = { bottom: vH - rect.top + PAD + 12 };
+  } else {
+    bubblePos = { top:'50%', transform:'translateY(-50%)' };
+  }
+
+  if (skipConfirm) return (
+    <div style={{ position:'fixed', inset:0, zIndex:220, background:'rgba(0,0,0,0.72)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div role="dialog" style={{ background:theme.surface, borderRadius:20, padding:'24px 20px', width:'100%', maxWidth:360, animation:'pgRise .2s ease' }}>
+        <h2 style={{ fontFamily:"'Geist', system-ui", fontSize:17, fontWeight:600, color:theme.text, margin:'0 0 8px' }}>Passer le tutoriel ?</h2>
+        <p style={{ fontSize:13, color:theme.muted, lineHeight:1.5, margin:'0 0 20px' }}>Tu pourras le relancer depuis les paramètres à tout moment.</p>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={() => setSkip(false)} style={{ flex:1, height:44, border:`1px solid ${theme.border}`, borderRadius:12, background:'transparent', color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:500, cursor:'pointer' }}>Non, continuer</button>
+          <button onClick={onSkip} style={{ flex:1, height:44, border:'none', borderRadius:12, background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600, cursor:'pointer' }}>Oui, passer</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const OVR = 'rgba(0,0,0,0.75)';
+  return (
+    <>
+      {rect ? (
+        <>
+          <div style={{ position:'fixed', top:0, left:0, right:0, height:Math.max(0,rect.top-PAD), background:OVR, zIndex:200 }}/>
+          <div style={{ position:'fixed', top:rect.top+rect.h+PAD, left:0, right:0, bottom:0, background:OVR, zIndex:200 }}/>
+          <div style={{ position:'fixed', left:0, top:rect.top-PAD, width:Math.max(0,rect.left-PAD), height:rect.h+PAD*2, background:OVR, zIndex:200 }}/>
+          <div style={{ position:'fixed', left:rect.left+rect.w+PAD, right:0, top:rect.top-PAD, height:rect.h+PAD*2, background:OVR, zIndex:200 }}/>
+          <div style={{ position:'fixed', left:rect.left-PAD, top:rect.top-PAD, width:rect.w+PAD*2, height:rect.h+PAD*2, borderRadius:12, outline:`2px solid rgba(255,255,255,0.25)`, zIndex:200 }}/>
+        </>
+      ) : (
+        <div style={{ position:'fixed', inset:0, background:OVR, zIndex:200 }}/>
+      )}
+
+      <div role="dialog" aria-labelledby="tut-title"
+        style={{ position:'fixed', left:16, right:16, zIndex:210, background:theme.surface, borderRadius:20, padding:'20px 18px 18px', boxShadow:'0 24px 60px rgba(0,0,0,0.45)', animation:'pgRise .25s cubic-bezier(.2,.7,.2,1)', ...bubblePos }}>
+        {!isFirst && !isLast && (
+          <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, letterSpacing:'0.14em', color:theme.faint, textTransform:'uppercase', marginBottom:8 }}>
+            Étape {step} / {TUTORIAL_STEPS.length - 2}
+          </div>
+        )}
+        <h2 id="tut-title" style={{ fontFamily:"'Geist', system-ui", fontSize:18, fontWeight:700, letterSpacing:'-0.02em', color:theme.text, margin:'0 0 8px', lineHeight:1.2 }}>{s.title}</h2>
+        <p style={{ fontSize:13.5, color:theme.muted, lineHeight:1.5, margin:'0 0 18px' }}>{s.text}</p>
+
+        {isLast ? (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <button onClick={() => { onOpenAuth(); onFinish(); }} style={{ height:48, border:'none', borderRadius:14, background:accent, color:'#fff', fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer' }}>Créer un compte</button>
+            <button onClick={onFinish} style={{ height:44, border:`1px solid ${theme.border}`, borderRadius:14, background:'transparent', color:theme.muted, fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:500, cursor:'pointer' }}>Continuer en mode invité</button>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            <button onClick={onNext} style={{ height:48, border:'none', borderRadius:14, background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              {isFirst ? 'Commencer le tour' : 'Suivant →'}
+            </button>
+            {isFirst
+              ? <button onClick={onSkip} style={{ height:36, border:'none', background:'transparent', color:theme.faint, fontFamily:"'Geist', system-ui", fontSize:12.5, cursor:'pointer' }}>Passer le tutoriel</button>
+              : <button onClick={() => setSkip(true)} style={{ height:32, border:'none', background:'transparent', color:theme.faint, fontFamily:"'Geist', system-ui", fontSize:11.5, cursor:'pointer' }}>Passer</button>
+            }
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 /* ── BottomTabs ───────────────────────────────────────────────────────── */
 function BottomTabs({ tab, setTab, theme, accent }) {
   const items = [
@@ -1516,6 +1647,11 @@ function App() {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [authOpen, setAuthOpen] = React.useState(false);
 
+  // Tutorial
+  const [tutorialActive, setTutorialActive] = React.useState(() => !localStorage.getItem('tutorial_completed'));
+  const [tutorialStep, setTutorialStep]     = React.useState(0);
+  const [tutorialFading, setTutorialFading] = React.useState(false);
+
   // scan flow state
   const [scanState, setScan] = React.useState({
     identity: null, frontFile: null, backFile: null, report: null,
@@ -1534,17 +1670,49 @@ function App() {
     } catch {}
   };
 
-  // collection: persisted in localStorage via effect
+  // collection: sandbox when tutorial active, otherwise real data
   const [collection, setCollection] = React.useState(() => {
+    if (!localStorage.getItem('tutorial_completed')) return SANDBOX_COLLECTION;
     try { return JSON.parse(localStorage.getItem('pg_collection') || '[]'); }
     catch { return []; }
   });
   React.useEffect(() => {
-    try { localStorage.setItem('pg_collection', JSON.stringify(collection)); } catch {}
-  }, [collection]);
+    if (!tutorialActive) {
+      try { localStorage.setItem('pg_collection', JSON.stringify(collection)); } catch {}
+    }
+  }, [collection, tutorialActive]);
   const saveCollection = setCollection;
 
-  const goTo = (s, args = {}) => { setScreen(s); setArgs(args); };
+  // End tutorial with fade-out animation
+  const finishTutorial = (openAuth = false) => {
+    localStorage.setItem('tutorial_completed', 'true');
+    setTutorialActive(false);
+    setTutorialFading(true);
+    setTimeout(() => {
+      setCollection([]);
+      setTutorialFading(false);
+      if (openAuth) setAuthOpen(true);
+    }, 1200);
+  };
+
+  // Restart tutorial (called from settings)
+  const restartTutorial = () => {
+    localStorage.removeItem('tutorial_completed');
+    setCollection(SANDBOX_COLLECTION);
+    setTutorialStep(0);
+    setTutorialActive(true);
+    setSettingsOpen(false);
+    setScreen('home');
+    setArgs({});
+  };
+
+  const goTo = (s, args = {}) => {
+    // Going to scanner during tutorial ends it (per spec)
+    if (tutorialActive && s.startsWith('scan')) {
+      finishTutorial();
+    }
+    setScreen(s); setArgs(args);
+  };
   const openSell  = (item) => { setSellItem(item); setSellOpen(true); };
   const closeSell = () => setSellOpen(false);
 
@@ -1556,20 +1724,20 @@ function App() {
   };
 
   const back = () => {
-    if (screen === 'scan-match')        goTo('scan-upload');
-    else if (screen === 'scan-report')  goTo('home');
+    if (screen === 'scan-match')           goTo('scan-upload');
+    else if (screen === 'scan-report')     goTo('home');
     else if (screen === 'collection-item') goTo('collection');
     else goTo('home');
   };
 
   const handleAnalyze = ({ identity, frontFile, backFile }) => {
     setScan({ identity, frontFile, backFile, report:null });
-    goTo('scan-match');
+    setScreen('scan-match'); setArgs({});
   };
 
   const handleConfirm = ({ report }) => {
     setScan(s => ({ ...s, report }));
-    goTo('scan-report');
+    setScreen('scan-report'); setArgs({});
   };
 
   // On login/register success: sync local items to Supabase then reload
@@ -1577,8 +1745,7 @@ function App() {
     saveAuthUser(user);
     setAuthOpen(false);
     try {
-      // Upload any local-only items (no remoteId) to Supabase
-      const localOnly = collection.filter(i => !i.remoteId);
+      const localOnly = collection.filter(i => !i.remoteId && !i.is_sandbox);
       for (const li of localOnly) {
         try {
           const r = await apiFetch('/api/collection', {
@@ -1586,11 +1753,9 @@ function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ report: li.report }),
           }, user.token);
-          // Update local item with Supabase id
           saveCollection(prev => prev.map(x => x.id === li.id ? { ...x, id: r.id, remoteId: r.id } : x));
         } catch {}
       }
-      // Fetch final remote collection
       const { items } = await apiFetch('/api/collection', {}, user.token);
       const remoteItems = items.map(i => ({
         id: i.id, remoteId: i.id,
@@ -1605,21 +1770,19 @@ function App() {
 
   const handleLogout = () => {
     saveAuthUser(null);
-    // Keep whatever is in localStorage, just mark items as local-only
-    const local = collection.map(i => ({ ...i, remoteId: undefined }));
+    const local = collection.filter(i => !i.is_sandbox).map(i => ({ ...i, remoteId: undefined }));
     saveCollection(local);
   };
 
   const handleAddToCollection = async (report) => {
+    if (tutorialActive) return; // read-only during tutorial
     const localId = String(Date.now());
     const newItem = {
       id: localId, remoteId: null,
       addedAt: new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }),
       report,
     };
-    const updated = [...collection, newItem];
-    saveCollection(updated);
-
+    saveCollection(c => [...c, newItem]);
     if (authUser) {
       try {
         const r = await apiFetch('/api/collection', {
@@ -1635,6 +1798,7 @@ function App() {
   };
 
   const handleRemove = async (id) => {
+    if (tutorialActive) return; // read-only during tutorial
     const item = collection.find(i => i.id === id);
     saveCollection(collection.filter(i => i.id !== id));
     if (authUser && item?.remoteId) {
@@ -1648,7 +1812,7 @@ function App() {
 
   let content;
   if (screen === 'home') {
-    content = <Dashboard theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} authUser={authUser} openAuth={() => setAuthOpen(true)} onLogout={handleLogout}/>;
+    content = <Dashboard theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} authUser={authUser} openAuth={() => setAuthOpen(true)} onLogout={handleLogout} isSandbox={tutorialActive}/>;
   } else if (screen === 'scan-upload') {
     content = <ScanUpload theme={theme} accent={accent} back={back} mode={screenArgs.mode||'upload'} onAnalyze={handleAnalyze}/>;
   } else if (screen === 'scan-match') {
@@ -1656,21 +1820,38 @@ function App() {
   } else if (screen === 'scan-report') {
     content = <ScanReport theme={theme} accent={accent} report={scanState.report} back={back} goTo={goTo} onAdd={handleAddToCollection} openSell={openSell}/>;
   } else if (screen === 'collection') {
-    content = <Collection theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} onRemove={handleRemove}/>;
+    content = <Collection theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} onRemove={handleRemove} isSandbox={tutorialActive}/>;
   } else if (screen === 'collection-item') {
     content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell}/>;
   }
 
   return (
     <div style={{ background:theme.bg, minHeight:'100dvh', display:'flex', flexDirection:'column', color:theme.text }}>
-      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)} authUser={authUser}/>
-      <div style={{ flex:1, overflow:'hidden', position:'relative', display:'flex', flexDirection:'column' }}>
+      <TopBar theme={theme} accent={accent} onSettings={() => setSettingsOpen(true)} authUser={authUser} sandboxMode={tutorialActive}/>
+      <div style={{ flex:1, overflow:'hidden', position:'relative', display:'flex', flexDirection:'column', opacity: tutorialFading ? 0 : 1, transition: tutorialFading ? 'opacity 1s ease' : 'none' }}>
         {content}
       </div>
       <BottomTabs tab={tab} setTab={setTab} theme={theme} accent={accent}/>
       {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
-      {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)}/>}
+      {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)} onRestart={restartTutorial}/>}
       {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
+      {tutorialActive && (
+        <TutorialOverlay
+          theme={theme} accent={accent}
+          step={tutorialStep}
+          onNext={() => setTutorialStep(s => Math.min(s + 1, TUTORIAL_STEPS.length - 1))}
+          onSkip={() => finishTutorial(false)}
+          onFinish={() => finishTutorial(false)}
+          onOpenAuth={() => { finishTutorial(true); }}
+        />
+      )}
+      {tutorialFading && (
+        <div style={{ position:'fixed', inset:0, zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', background:theme.bg, opacity: tutorialFading ? 1 : 0, transition:'opacity .3s' }}>
+          <div style={{ textAlign:'center', fontSize:15, fontWeight:600, color:theme.text, letterSpacing:'-0.01em', animation:'pgFade .5s ease .2s both' }}>
+            Ta collection personnelle commence ici.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
