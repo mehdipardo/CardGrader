@@ -1120,7 +1120,7 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell }) {
       {/* GRADING */}
       <div style={{ padding:'14px 16px 0' }}>
         <SectionHead theme={theme} title="État · grading" action="auto"/>
-        <div style={{ marginTop:10, padding:16, borderRadius:16, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+        <div data-tutorial="grading-section" style={{ marginTop:10, padding:16, borderRadius:16, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
           <div style={{ display:'flex', alignItems:'center', gap:14 }}>
             <ScoreRing value={score} size={92} stroke={8}/>
             <div style={{ flex:1, minWidth:0 }}>
@@ -1594,11 +1594,13 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
   const bubbleRef = React.useRef(null);
 
   const STEPS = [
-    { title: 'Bienvenue sur PokéGrader 🎴', text: "Estime, suis et vends tes cartes Pokémon TCG avec l'intelligence artificielle. Voici un tour rapide en 60 secondes.", target: null },
+    { title: 'Bienvenue sur PokéGrader 🎴', text: "Estime, suis et vends tes cartes Pokémon TCG avec l'intelligence artificielle. Voici un tour rapide en 90 secondes.", target: null },
     { title: 'Ta collection en un coup d\'œil', text: 'Valeur totale, nombre de cartes, scans récents — tout est mis à jour automatiquement.', target: 'stats-row' },
     { title: 'Chaque carte est évaluée par l\'IA', text: 'Score d\'état, prix estimé selon CardMarket, et possibilité de vendre en un clic.', target: 'recent-card-0' },
+    { title: 'Score détaillé, critère par critère', text: 'Centrage, coins, bords, surface — chaque aspect est analysé séparément pour un grade précis sur 10.', target: 'grading-section' },
     { title: 'Scanne tes propres cartes', text: 'Prends une photo recto + verso, l\'IA identifie la carte et évalue son état en quelques secondes.', target: 'scan-hero' },
-    { title: 'Vends en un clic', text: 'L\'IA rédige une annonce optimisée pour Vinted, eBay, CardMarket et autres plateformes.', target: 'sell-cta-btn' },
+    { title: 'Vends en un clic', text: 'L\'IA rédige une annonce en quelques secondes, adaptée à chaque plateforme.', target: 'sell-cta-btn' },
+    { title: 'Annonce rédigée en 10 secondes', text: 'Titre accrocheur, description optimisée, prix suggéré selon CardMarket — prêt à copier-coller.', target: null, hasMockListing: true },
     { title: 'Prêt à commencer ?', text: 'Crée un compte pour sauvegarder ta collection dans le temps, ou continue en mode invité pour tester.', target: null, isFinal: true },
   ];
 
@@ -1701,7 +1703,7 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
               }}/>
             ))}
           </div>
-          <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted }}>{step} / 6</span>
+          <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted }}>{step} / 8</span>
         </div>
 
         {!confirmSkip ? (
@@ -1709,9 +1711,34 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
             <h2 id={`tut-title-${step}`} style={{ margin:0, marginBottom:8, fontFamily:"'Geist', system-ui", fontSize:15.5, fontWeight:700, color:theme.text, letterSpacing:'-0.02em', lineHeight:1.25 }}>
               {current.title}
             </h2>
-            <p style={{ margin:0, marginBottom:18, fontSize:13, color:theme.muted, lineHeight:1.6 }}>
+            <p style={{ margin:0, marginBottom: current.hasMockListing ? 12 : 18, fontSize:13, color:theme.muted, lineHeight:1.6 }}>
               {current.text}
             </p>
+
+            {current.hasMockListing && (
+              <div style={{ marginBottom:16, borderRadius:14, border:`1px solid ${theme.borderS}`, overflow:'hidden', fontSize:12 }}>
+                {/* Platform tabs */}
+                <div style={{ background:theme.chipBg, padding:'8px 12px', borderBottom:`1px solid ${theme.borderS}`, display:'flex', gap:5 }}>
+                  {[{l:'Vinted', c:'#09b1ba'}, {l:'eBay', c:'#e53238'}, {l:'CardMarket', c:'#012169'}].map((p,i) => (
+                    <span key={p.l} style={{ fontSize:10.5, fontWeight:600, padding:'2px 8px', borderRadius:99, background: i===0 ? p.c : theme.surface, color: i===0 ? '#fff' : theme.muted, fontFamily:"'Geist Mono', monospace", border: i!==0 ? `1px solid ${theme.borderS}` : 'none' }}>{p.l}</span>
+                  ))}
+                </div>
+                <div style={{ padding:'12px 12px 10px' }}>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase', marginBottom:3 }}>Titre</div>
+                  <div style={{ fontWeight:600, color:theme.text, marginBottom:10, lineHeight:1.35, fontSize:12 }}>Dracaufeu 4/102 Set de Base FR — État Correct (6.5/10)</div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase', marginBottom:3 }}>Description</div>
+                  <div style={{ color:theme.muted, lineHeight:1.5, marginBottom:10, fontSize:11.5 }}>Vends Dracaufeu 4/102 Set de Base FR en très bon état général. Grade IA 6.5/10 — légères marques sur les bords, coins conservés. Carte authentique, expédition soignée en toploader...</div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:8, borderTop:`1px solid ${theme.borderS}` }}>
+                    <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                      {['#Pokemon','#Dracaufeu','#TCG','#SetdeBase'].map(t => (
+                        <span key={t} style={{ fontSize:10, padding:'2px 6px', borderRadius:5, background:theme.chipBg, fontFamily:"'Geist Mono', monospace", color:theme.muted }}>{t}</span>
+                      ))}
+                    </div>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:17, fontWeight:700, color:theme.text, letterSpacing:'-0.025em', whiteSpace:'nowrap', marginLeft:8 }}>165 €</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {current.isFinal ? (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -1839,12 +1866,26 @@ function App() {
   const completeTutorial  = () => exitTutorial(false);
   const completeTutorialAuth = () => exitTutorial(true);
   const skipTutorial       = () => exitTutorial(false);
-  const nextTutorialStep   = () => setTutorialStep(s => Math.min(s + 1, 6));
+  const nextTutorialStep   = () => setTutorialStep(s => Math.min(s + 1, 8));
   const replayTutorial     = () => {
     localStorage.setItem('tutorial_completed', 'false');
     window.location.reload();
   };
 
+  // Navigate to grading detail on step 4, back to home on step 5
+  const prevTutorialStep = React.useRef(1);
+  React.useEffect(() => {
+    if (!tutorialActive) return;
+    const prev = prevTutorialStep.current;
+    prevTutorialStep.current = tutorialStep;
+    if (tutorialStep === 4) {
+      setScreen('collection-item');
+      setArgs({ collectionItem: DEMO_COLLECTION[9] }); // Dracaufeu
+    } else if (prev === 4) {
+      setScreen('home');
+      setArgs({});
+    }
+  }, [tutorialStep, tutorialActive]);
 
   // scan flow state
   const [scanState, setScan] = React.useState({
