@@ -759,7 +759,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
       const { candidates: cands, lang: activeLang } = await apiFetch('/api/search', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ name, language: identity?.language || 'FR' }),
+        body: JSON.stringify({ name, language: identity?.language || 'FR', number: identity?.number || '' }),
       });
       searchLangRef.current = activeLang || lang;
       if (cands?.length) {
