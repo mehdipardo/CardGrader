@@ -5,7 +5,21 @@
     { "src": "frontend/**",        "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)",  "dest": "/api/index.py"          },
-    { "src": "/(.*)",      "dest": "/frontend/index.html"   }
+    { "src": "/api/(.*)",  "dest": "/api/index.py" },
+    { "src": "/(.*)",      "dest": "/frontend/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+      ]
+    }
   ]
 }
