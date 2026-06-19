@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#1a1b20"/>
   <title>PokéGrader</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body, #root { height: 100%; }
@@ -56,6 +56,7 @@
 </head>
 <body>
 <div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.26.5/babel.min.js"></script>
@@ -1115,7 +1116,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
 }
 
 /* ── ScanReport ───────────────────────────────────────────────────────── */
-function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell }) {
+function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell, openShare }) {
   const [expanded, setExpanded] = React.useState(false);
   const [added, setAdded]       = React.useState(false);
 
@@ -1266,6 +1267,20 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell }) {
           <Icon.euro size={15}/> Vendre
         </button>
       </div>
+      {openShare && (
+        <div style={{ padding:'10px 16px 0' }}>
+          <button onClick={() => openShare(report)} style={{
+            width:'100%', height:44, border:`1px solid #7c3aed44`, borderRadius:14,
+            background:'linear-gradient(135deg,#3b0764 0%,#1e1b4b 100%)',
+            color:'#e9d5ff', cursor:'pointer',
+            fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+            boxShadow:'0 0 20px #7c3aed33',
+          }}>
+            ✨ Partager cette carte
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2163,6 +2178,357 @@ function PokedexPage({ theme, accent, collection, goTo }) {
   );
 }
 
+/* ── Share card helpers ──────────────────────────────────────────────── */
+function getCosmicTheme(cardName) {
+  const n = (cardName || '').toLowerCase();
+  if (/charmand|charmel|charizard|dracaufeu|salamèche|reptincel|magmar|arcanin|vulpix|goupix|flareon|pyroli|ponyta|galop|moltres|sulfura|entei|ho-oh|ho oh|blaziken|torchic|combusken|infernape|reshiram|talonflame/.test(n))
+    return 'red';
+  if (/squirtle|blastoise|vaporeon|gyarados|lapras|carapuce|tortank|carabaffe|aquali|lokhlass|psyduck|tentacruel|staryu|starmi|articuno|artikodin|totodile|suicune|kyogre|piplup|empoleon|vaporeon/.test(n))
+    return 'blue';
+  return 'purple';
+}
+
+const COSMIC_STYLES = {
+  purple: {
+    bg: '/assets/share-bg/cosmic-purple.svg',
+    bgCss: 'radial-gradient(ellipse at 35% 28%, #4c1d95cc 0%, #2e1065 50%, #05000a 100%)',
+    glow: '#7c3aed', glowBright: '#a78bfa', glowSoft: '#4c1d9566',
+    priceColor: '#e9d5ff',
+    cardShadow: '0 0 80px #7c3aed99, 0 0 160px #4c1d9555, 0 50px 100px rgba(0,0,0,0.7)',
+  },
+  red: {
+    bg: '/assets/share-bg/cosmic-red.svg',
+    bgCss: 'radial-gradient(ellipse at 38% 28%, #7f1d1dcc 0%, #450a0a 50%, #090001 100%)',
+    glow: '#dc2626', glowBright: '#f87171', glowSoft: '#7f1d1d66',
+    priceColor: '#fecaca',
+    cardShadow: '0 0 80px #dc262699, 0 0 160px #7f1d1d55, 0 50px 100px rgba(0,0,0,0.7)',
+  },
+  blue: {
+    bg: '/assets/share-bg/cosmic-blue.svg',
+    bgCss: 'radial-gradient(ellipse at 38% 28%, #1e3a8acc 0%, #0c1a5e 50%, #00020c 100%)',
+    glow: '#1d4ed8', glowBright: '#60a5fa', glowSoft: '#1e3a8a66',
+    priceColor: '#bfdbfe',
+    cardShadow: '0 0 80px #1d4ed899, 0 0 160px #1e3a8a55, 0 50px 100px rgba(0,0,0,0.7)',
+  },
+};
+
+/* ── ShareCardHolyPull ────────────────────────────────────────────────── */
+function ShareCardHolyPull({ report, elId = 'share-card-holy-pull' }) {
+  const id_  = report?.identity  || {};
+  const cond = report?.condition || {};
+  const val  = report?.valuation || {};
+
+  const price    = Math.round(val.estimated_value || 0);
+  const score    = parseFloat((cond.overall_score || 0).toFixed(1));
+  const cardName = id_.name     || 'Carte';
+  const setName  = id_.set_name || '';
+  const lang     = id_.language || '';
+  const number   = id_.number   || '';
+  const imgUrl   = id_.image ? id_.image + '/high.webp' : null;
+
+  const cosmicKey = getCosmicTheme(cardName);
+  const C = COSMIC_STYLES[cosmicKey];
+
+  return (
+    <div id={elId} style={{
+      width: 1080, height: 1920,
+      position: 'relative', overflow: 'hidden',
+      fontFamily: "'Geist', 'Arial', sans-serif",
+      userSelect: 'none',
+    }}>
+      {/* Layer 1 — cosmic background */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: `url(${C.bg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}/>
+      {/* CSS gradient overlay for richness */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: `radial-gradient(ellipse at 50% 42%, ${C.glowSoft} 0%, transparent 65%)`,
+      }}/>
+
+      {/* Layer 2 — HOLY PULL badge (top-right) */}
+      <img
+        src="/assets/share-cards/badge-holy-pull.svg"
+        crossOrigin="anonymous"
+        style={{ position:'absolute', top:72, right:72, width:220, height:220, opacity:0.96 }}
+      />
+
+      {/* Layer 3 — Card image + acrylic case */}
+      <div style={{
+        position:'absolute',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -58%) rotate(-3deg)',
+        width: 460, height: 645,
+      }}>
+        {/* Glow halo behind card */}
+        <div style={{
+          position:'absolute', inset:-40,
+          background: `radial-gradient(ellipse at 50% 50%, ${C.glow}66 0%, transparent 70%)`,
+          borderRadius: 30, filter: 'blur(24px)',
+        }}/>
+
+        {/* Card image */}
+        {imgUrl ? (
+          <img
+            src={imgUrl}
+            crossOrigin="anonymous"
+            style={{ position:'absolute', inset:0, width:460, height:645, objectFit:'cover', borderRadius:22, display:'block' }}
+          />
+        ) : (
+          <div style={{ position:'absolute', inset:0, borderRadius:22, background:`linear-gradient(135deg, ${C.glow}44, ${C.glowSoft})`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ color:'rgba(255,255,255,0.5)', fontSize:80, fontWeight:700 }}>{cardName[0]}</span>
+          </div>
+        )}
+
+        {/* Case overlay */}
+        <img
+          src="/assets/share-cards/case-overlay.svg"
+          crossOrigin="anonymous"
+          style={{ position:'absolute', top:0, left:0, width:460, height:645, mixBlendMode:'screen' }}
+        />
+
+        {/* Score bubble */}
+        <div style={{
+          position:'absolute', top:-24, left:-24,
+          width:88, height:88, borderRadius:99,
+          background: gradeColor(score),
+          display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column',
+          boxShadow:`0 0 0 3px rgba(255,255,255,0.25), 0 8px 24px ${gradeColor(score)}88`,
+        }}>
+          <span style={{ color:'#fff', fontSize:30, fontWeight:800, lineHeight:1, fontFamily:"'Geist', Arial, sans-serif", letterSpacing:'-0.03em' }}>{score}</span>
+          <span style={{ color:'rgba(255,255,255,0.75)', fontSize:13, lineHeight:1, fontFamily:"'Geist Mono', monospace" }}>/10</span>
+        </div>
+      </div>
+
+      {/* Layer 4 — hexagonal pedestal */}
+      <img
+        src="/assets/share-cards/pedestal.svg"
+        crossOrigin="anonymous"
+        style={{
+          position:'absolute',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, 30%)',
+          width: 860, height: 180,
+          opacity: 0.88,
+        }}
+      />
+
+      {/* Layer 5 — Price + card info */}
+      <div style={{
+        position:'absolute', bottom:310, left:0, right:0,
+        textAlign:'center', padding:'0 90px',
+      }}>
+        {/* Price */}
+        <div style={{
+          fontFamily:"'Playfair Display', 'Georgia', serif",
+          fontSize: 178, fontWeight: 400, lineHeight: 1,
+          color: '#ffffff',
+          textShadow:`0 0 80px ${C.glow}cc, 0 0 160px ${C.glow}66`,
+          letterSpacing:'-0.02em',
+        }}>
+          {price}€
+        </div>
+
+        {/* Card name */}
+        <div style={{
+          color:'rgba(255,255,255,0.92)',
+          fontSize:52, fontWeight:700, marginTop:18, letterSpacing:'-0.01em',
+          fontFamily:"'Geist', Arial, sans-serif",
+          textShadow:`0 2px 20px rgba(0,0,0,0.6)`,
+        }}>
+          {cardName}
+        </div>
+
+        {/* Set + details */}
+        <div style={{
+          color:'rgba(255,255,255,0.50)',
+          fontSize:30, marginTop:10,
+          fontFamily:"'Geist Mono', 'Courier New', monospace",
+          letterSpacing:'0.07em',
+        }}>
+          {[setName, lang, number].filter(Boolean).join(' · ')}
+        </div>
+
+        {/* Condition label */}
+        <div style={{
+          display:'inline-block', marginTop:18,
+          padding:'8px 28px', borderRadius:99,
+          border:`2px solid ${C.glowBright}66`,
+          background:`${C.glow}22`,
+          color:C.glowBright, fontSize:26,
+          fontFamily:"'Geist Mono', monospace", letterSpacing:'0.1em', fontWeight:600,
+        }}>
+          {score >= 9.5 ? 'MINT' : score >= 8.0 ? 'NEAR MINT' : score >= 6.5 ? 'EXCELLENT' : score >= 5.0 ? 'GOOD' : score >= 3.5 ? 'LIGHT PLAYED' : 'PLAYED'}
+        </div>
+      </div>
+
+      {/* Layer 6 — Footer branding */}
+      <div style={{
+        position:'absolute', bottom:72, left:0, right:0,
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'0 90px',
+      }}>
+        <div>
+          <img
+            src="/assets/logo-pokegrader.svg"
+            crossOrigin="anonymous"
+            style={{ width:220, height:44, objectFit:'contain' }}
+          />
+          <div style={{
+            color:'rgba(255,255,255,0.38)', fontSize:22,
+            fontFamily:"'Geist Mono', monospace", letterSpacing:'0.14em',
+            marginTop:8,
+          }}>
+            TRACK · GRADE · FLEX
+          </div>
+        </div>
+
+        {/* QR placeholder */}
+        <div style={{
+          width:110, height:110,
+          background:'rgba(255,255,255,0.08)',
+          border:'2px solid rgba(255,255,255,0.18)',
+          borderRadius:14,
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=https://card-grader-six.vercel.app&bgcolor=00000000&color=ffffff&qzone=1`}
+            crossOrigin="anonymous"
+            width={90} height={90}
+            style={{ borderRadius:6, opacity:0.85 }}
+          />
+        </div>
+      </div>
+
+      {/* Vignette overlay */}
+      <div style={{
+        position:'absolute', inset:0, pointerEvents:'none',
+        background:'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.45) 100%)',
+      }}/>
+    </div>
+  );
+}
+
+/* ── ShareModal ───────────────────────────────────────────────────────── */
+function ShareModal({ theme, report, onClose }) {
+  const [status, setStatus]   = React.useState('idle'); // idle | generating | done | error
+  const [dataUrl, setDataUrl] = React.useState(null);
+  const captureId = 'share-card-capture-target';
+
+  const generate = React.useCallback(async () => {
+    setStatus('generating');
+    await new Promise(r => setTimeout(r, 120)); // let DOM settle
+    const node = document.getElementById(captureId);
+    if (!node) { setStatus('error'); return; }
+    try {
+      const url = await window.htmlToImage.toPng(node, {
+        width: 1080, height: 1920,
+        pixelRatio: 1,
+        backgroundColor: '#000000',
+        quality: 1.0,
+        fetchRequestInit: { cache: 'force-cache' },
+      });
+      setDataUrl(url);
+      setStatus('done');
+    } catch (e) {
+      console.error('html-to-image error:', e);
+      setStatus('error');
+    }
+  }, []);
+
+  React.useEffect(() => { generate(); }, [generate]);
+
+  const download = () => {
+    if (!dataUrl) return;
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `pokegrader-${(report?.identity?.name || 'carte').toLowerCase().replace(/\s+/g, '-')}.png`;
+    a.click();
+  };
+
+  const share = async () => {
+    if (!dataUrl) return;
+    try {
+      if (navigator.share && navigator.canShare) {
+        const blob = await fetch(dataUrl).then(r => r.blob());
+        const file = new File([blob], 'pokegrader-card.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'PokéGrader', text: `${report?.identity?.name} — PokéGrader` });
+          return;
+        }
+      }
+      download(); // Fallback
+    } catch (e) {
+      if (e.name !== 'AbortError') download();
+    }
+  };
+
+  const PREVIEW_W = Math.min(320, (typeof window !== 'undefined' ? window.innerWidth : 390) - 48);
+  const scale     = PREVIEW_W / 1080;
+  const PREVIEW_H = Math.round(1920 * scale);
+
+  return (
+    <div
+      style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.88)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:16, animation:'pgFade .2s ease' }}
+      onClick={onClose}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:16, maxHeight:'95vh', width: PREVIEW_W + 32 }}>
+
+        {/* Preview area */}
+        <div style={{ width:PREVIEW_W, height:PREVIEW_H, borderRadius:12, overflow:'hidden', position:'relative', boxShadow:'0 12px 60px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)', flexShrink:0 }}>
+          <div style={{ transformOrigin:'top left', transform:`scale(${scale})`, width:1080, height:1920, pointerEvents:'none' }}>
+            <ShareCardHolyPull report={report} elId="share-card-preview"/>
+          </div>
+          {status === 'generating' && (
+            <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+              <Spinner size={32} color="#fff"/>
+              <span style={{ color:'rgba(255,255,255,0.8)', fontSize:12, fontFamily:"'Geist', system-ui" }}>Génération en cours…</span>
+            </div>
+          )}
+        </div>
+
+        {/* Hidden full-size capture target */}
+        <div style={{ position:'fixed', top:0, left:'-1200px', width:1080, height:1920, pointerEvents:'none', overflow:'hidden' }}>
+          <ShareCardHolyPull report={report} elId={captureId}/>
+        </div>
+
+        {/* Status / error */}
+        {status === 'error' && (
+          <div style={{ color:'#f87171', fontSize:12, textAlign:'center', padding:'0 16px' }}>
+            La génération a échoué. Vérifie ta connexion et réessaie.
+            <button onClick={generate} style={{ marginLeft:8, color:'#fff', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', fontSize:12, fontFamily:"'Geist', system-ui" }}>Réessayer</button>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display:'flex', gap:10, width:'100%' }}>
+          <button
+            onClick={download}
+            disabled={status !== 'done'}
+            style={{ flex:1, height:48, borderRadius:14, border:`1px solid rgba(255,255,255,0.2)`, background:'rgba(255,255,255,0.1)', color:'#fff', fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor: status !== 'done' ? 'default' : 'pointer', opacity: status !== 'done' ? 0.5 : 1, transition:'opacity .2s' }}
+          >
+            Télécharger
+          </button>
+          <button
+            onClick={share}
+            disabled={status !== 'done'}
+            style={{ flex:1, height:48, borderRadius:14, border:'none', background: status === 'done' ? '#d4af37' : 'rgba(212,175,55,0.4)', color:'#000', fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:700, cursor: status !== 'done' ? 'default' : 'pointer', opacity: status !== 'done' ? 0.6 : 1, transition:'opacity .2s' }}
+          >
+            Partager
+          </button>
+        </div>
+
+        <button onClick={onClose} style={{ color:'rgba(255,255,255,0.4)', fontSize:13, border:'none', background:'none', cursor:'pointer', fontFamily:"'Geist', system-ui", padding:'4px 16px' }}>
+          Plus tard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Toast notification ────────────────────────────────────────────────── */
 function Toast({ message, onDone }) {
   React.useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, []);
@@ -2281,6 +2647,8 @@ function App() {
   const [screenArgs, setArgs]   = React.useState({});
   const [sellOpen, setSellOpen] = React.useState(false);
   const [sellItem, setSellItem] = React.useState(null);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [shareItem, setShareItem] = React.useState(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [authOpen, setAuthOpen] = React.useState(false);
 
@@ -2511,11 +2879,11 @@ function App() {
   } else if (screen === 'scan-report') {
     const _srReport = screenArgs.collectionItem?.report || scanState.report;
     const _srOnAdd  = screenArgs.collectionItem ? () => {} : handleAddToCollection;
-    content = <ScanReport theme={theme} accent={accent} report={_srReport} back={back} goTo={goTo} onAdd={_srOnAdd} openSell={openSell}/>;
+    content = <ScanReport theme={theme} accent={accent} report={_srReport} back={back} goTo={goTo} onAdd={_srOnAdd} openSell={openSell} openShare={r => { setShareItem(r); setShareOpen(true); }}/>;
   } else if (screen === 'collection') {
     content = <Collection theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} onRemove={handleRemove} tutorialActive={demoMode}/>;
   } else if (screen === 'collection-item') {
-    content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell}/>;
+    content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell} openShare={r => { setShareItem(r); setShareOpen(true); }}/>;
   } else if (screen === 'sets') {
     content = <SetsPage theme={theme} accent={accent} collection={activeCollection} goTo={goTo}/>;
   } else if (screen === 'set-detail') {
@@ -2535,6 +2903,7 @@ function App() {
       {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
       {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)} onReplayTutorial={replayTutorial}/>}
       {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
+      {shareOpen    && <ShareModal   theme={theme} report={shareItem} onClose={() => { setShareOpen(false); setShareItem(null); }}/>}
       {toast        && <Toast message={toast} onDone={() => setToast(null)}/>}
       {tutorialActive && (
         <TutorialOverlay

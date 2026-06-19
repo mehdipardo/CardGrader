@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" width="900" height="220">
+  <defs>
+    <linearGradient id="topFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#4c1d95" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="leftFace" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2e1065" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#4c1d95" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="rightFace" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#1e0a3c" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#3b0d7a" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="white" stop-opacity="0"/>
+      <stop offset="40%" stop-color="white" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-10%" y="-50%" width="120%" height="200%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Ground glow -->
+  <ellipse cx="450" cy="195" rx="400" ry="28" fill="#7c3aed" opacity="0.22" filter="url(#glow)"/>
+
+  <!-- Hexagonal platform — top hex: flat-top, slight 3-D perspective -->
+  <!-- Top face (hexagon viewed from slight above) -->
+  <polygon points="200,55  450,18  700,55  700,90  450,58  200,90" fill="url(#topFace)"/>
+  <!-- Left face -->
+  <polygon points="200,55  200,165  450,182  450,58" fill="url(#leftFace)"/>
+  <!-- Right face -->
+  <polygon points="700,55  700,165  450,182  450,58" fill="url(#rightFace)"/>
+  <!-- Front bottom bar -->
+  <rect x="200" y="163" width="500" height="18" rx="3" fill="#1a0033" opacity="0.6"/>
+
+  <!-- Top edge highlight -->
+  <polygon points="200,55  450,18  700,55  700,60  450,23  200,60" fill="url(#sheen)" opacity="0.8"/>
+
+  <!-- Thin edge lines -->
+  <polyline points="200,55  450,18  700,55" fill="none" stroke="#a78bfa" stroke-width="1.2" opacity="0.45"/>
+  <line x1="200" y1="55" x2="200" y2="165" stroke="#7c3aed" stroke-width="0.8" opacity="0.3"/>
+  <line x1="700" y1="55" x2="700" y2="165" stroke="#4c1d95" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Horizontal groove lines on top face -->
+  <line x1="220" y1="68" x2="680" y2="68" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <line x1="210" y1="80" x2="690" y2="80" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+</svg>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="55%">
+      <stop offset="0%" stop-color="#3b0d7a"/>
+      <stop offset="100%" stop-color="#0a0015"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe566"/>
+      <stop offset="40%" stop-color="#ffd700"/>
+      <stop offset="100%" stop-color="#c8960c"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer glow ring -->
+  <circle cx="120" cy="120" r="116" fill="#7c3aed" opacity="0.18" filter="url(#glow)"/>
+  <!-- Outer gold ring -->
+  <circle cx="120" cy="120" r="112" fill="none" stroke="url(#gold)" stroke-width="3.5"/>
+  <!-- Dashed inner ring -->
+  <circle cx="120" cy="120" r="104" fill="none" stroke="#ffd700" stroke-width="1" stroke-dasharray="5 3.5" opacity="0.6"/>
+  <!-- Badge fill -->
+  <circle cx="120" cy="120" r="108" fill="url(#bg)"/>
+
+  <!-- Top decorative line -->
+  <line x1="50" y1="64" x2="190" y2="64" stroke="#ffd700" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- Stars row -->
+  <text x="120" y="88" text-anchor="middle" font-size="18" fill="#ffd700" font-family="serif" opacity="0.9">★  ★  ★</text>
+
+  <!-- HOLY text -->
+  <text x="120" y="128" text-anchor="middle"
+        font-size="36" fill="#ffd700"
+        font-family="'Arial Black', 'Impact', sans-serif"
+        font-weight="900" letter-spacing="6">HOLY</text>
+
+  <!-- PULL text -->
+  <text x="120" y="166" text-anchor="middle"
+        font-size="36" fill="#ffd700"
+        font-family="'Arial Black', 'Impact', sans-serif"
+        font-weight="900" letter-spacing="8">PULL</text>
+
+  <!-- Bottom decorative -->
+  <text x="120" y="192" text-anchor="middle" font-size="13" fill="#ffd700" font-family="serif" opacity="0.55">· · ◆ · ·</text>
+
+  <!-- Bottom ring line -->
+  <line x1="60" y1="204" x2="180" y2="204" stroke="#ffd700" stroke-width="0.8" opacity="0.4"/>
+</svg>

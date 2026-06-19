@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <defs>
+    <radialGradient id="nebula1" cx="38%" cy="32%" r="55%">
+      <stop offset="0%" stop-color="#1d4ed8" stop-opacity="0.72"/>
+      <stop offset="50%" stop-color="#1e3a8a" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebula2" cx="70%" cy="62%" r="42%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="deep" cx="50%" cy="85%" r="30%">
+      <stop offset="0%" stop-color="#0891b2" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur8"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+  <rect width="1080" height="1920" fill="#00020c"/>
+  <rect width="1080" height="1920" fill="url(#nebula1)"/>
+  <rect width="1080" height="1920" fill="url(#nebula2)"/>
+  <rect width="1080" height="1920" fill="url(#deep)"/>
+  <ellipse cx="300" cy="650" rx="290" ry="65" fill="#1e3a8a" opacity="0.12" transform="rotate(-15 300 650)" filter="url(#blur8)"/>
+  <ellipse cx="780" cy="1250" rx="230" ry="55" fill="#1d4ed8" opacity="0.1" transform="rotate(18 780 1250)" filter="url(#blur8)"/>
+  <!-- Stars -->
+  <circle cx="98"  cy="87"  r="2.0" fill="white" opacity="0.88"/>
+  <circle cx="267" cy="134" r="1.7" fill="white" opacity="0.8"/>
+  <circle cx="512" cy="56"  r="2.3" fill="white" opacity="0.93"/>
+  <circle cx="734" cy="178" r="1.5" fill="white" opacity="0.74"/>
+  <circle cx="912" cy="89"  r="1.9" fill="white" opacity="0.86"/>
+  <circle cx="145" cy="289" r="1.6" fill="white" opacity="0.78"/>
+  <circle cx="389" cy="256" r="1.4" fill="white" opacity="0.68"/>
+  <circle cx="678" cy="323" r="2.1" fill="white" opacity="0.9"/>
+  <circle cx="56"  cy="445" r="1.8" fill="white" opacity="0.82"/>
+  <circle cx="478" cy="489" r="2.0" fill="white" opacity="0.88"/>
+  <circle cx="823" cy="534" r="1.5" fill="white" opacity="0.74"/>
+  <circle cx="234" cy="623" r="1.9" fill="white" opacity="0.85"/>
+  <circle cx="567" cy="689" r="1.4" fill="white" opacity="0.68"/>
+  <circle cx="912" cy="756" r="2.2" fill="white" opacity="0.91"/>
+  <circle cx="167" cy="867" r="1.7" fill="white" opacity="0.8"/>
+  <circle cx="434" cy="934" r="2.1" fill="white" opacity="0.9"/>
+  <circle cx="712" cy="1012" r="1.5" fill="white" opacity="0.74"/>
+  <circle cx="289" cy="1123" r="1.8" fill="white" opacity="0.82"/>
+  <circle cx="601" cy="1178" r="1.9" fill="white" opacity="0.86"/>
+  <circle cx="845" cy="1245" r="1.4" fill="white" opacity="0.68"/>
+  <circle cx="78"  cy="1356" r="2.1" fill="white" opacity="0.9"/>
+  <circle cx="356" cy="1412" r="1.6" fill="white" opacity="0.78"/>
+  <circle cx="678" cy="1489" r="1.9" fill="white" opacity="0.85"/>
+  <circle cx="934" cy="1545" r="1.5" fill="white" opacity="0.74"/>
+  <circle cx="212" cy="1634" r="2.0" fill="white" opacity="0.88"/>
+  <circle cx="512" cy="1689" r="1.7" fill="white" opacity="0.8"/>
+  <circle cx="789" cy="1756" r="1.4" fill="white" opacity="0.68"/>
+  <circle cx="145" cy="1845" r="2.2" fill="white" opacity="0.91"/>
+  <!-- Blue-tinted bright stars -->
+  <circle cx="520" cy="410" r="1.9" fill="#bfdbfe" opacity="0.72"/>
+  <circle cx="340" cy="530" r="1.6" fill="#7dd3fc" opacity="0.65"/>
+</svg>
