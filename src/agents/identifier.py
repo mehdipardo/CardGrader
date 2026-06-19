@@ -78,9 +78,14 @@ FORMAT DE RÉPONSE JSON :
   "set_name": "nom du set si visible, sinon null",
   "set_code": "code du set si connu, sinon null",
   "rarity": "type de rareté détecté",
+  "is_first_edition": false,
   "number_uncertain": false,
   "confidence": 0.95
-}"""
+}
+
+RÈGLES POUR is_first_edition :
+Cherche un tampon ovale avec "1" et "EDITION" (ou "1st Edition" / "1ère Édition") en bas à gauche
+de l'illustration. Si ce tampon est présent : true. Sinon : false."""
 
 USER_PROMPT = "Analyse cette carte Pokémon TCG."
 
@@ -224,6 +229,7 @@ class CardIdentifierAgent:
             set_name=data.get("set_name") or "",
             set_code=data.get("set_code"),
             rarity=data.get("rarity"),
+            is_first_edition=data.get("is_first_edition") or False,
         )
 
 

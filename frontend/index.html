@@ -25,6 +25,29 @@
     @keyframes pgFade { from { opacity:0 } to { opacity:1 } }
     @keyframes pgRise { from { transform:translateY(40px); opacity:0 } to { transform:translateY(0); opacity:1 } }
     @keyframes spin { to { transform: rotate(360deg) } }
+    @keyframes firstEdGlow {
+      0%,100% { box-shadow: 0 0 0 2px #ffd649, 0 0 14px 5px rgba(255,214,73,0.4); }
+      33%  { box-shadow: 0 0 0 2px #c084fc, 0 0 14px 5px rgba(192,132,252,0.4); }
+      66%  { box-shadow: 0 0 0 2px #34d399, 0 0 14px 5px rgba(52,211,153,0.4); }
+    }
+    @keyframes firstEdBadge {
+      0%,100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .first-ed-card { animation: firstEdGlow 2.5s ease-in-out infinite; }
+    .first-ed-badge {
+      background: linear-gradient(90deg,#ffd649,#c084fc,#34d399,#ffd649);
+      background-size: 300% 100%;
+      animation: firstEdBadge 2.5s ease infinite;
+      color: #1a1b20;
+      font-weight: 700;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      display: inline-flex;
+      align-items: center;
+      letter-spacing: 0.01em;
+    }
     button { font-family: inherit; -webkit-appearance: none; }
     input, textarea { font-family: inherit; }
     ::-webkit-scrollbar { display: none; }
@@ -233,7 +256,7 @@ const DEMO_COLLECTION = [
   {
     id: 'sandbox-7', is_sandbox: true, addedAt: '07 juin',
     report: {
-      identity: { name: 'Caterpie', number: '45/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', image: 'https://assets.tcgdex.net/fr/base/base1/45' },
+      identity: { name: 'Caterpie', number: '45/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/45' },
       condition: { overall_score: 4.5, centering: 5.0, corners: 4.0, edges: 4.5, surface: 4.5, confidence: 0.80 },
       pricing: { raw_price: 1.5, language_specific: true },
       valuation: { estimated_value: 0.5, value_range_low: 0.3, value_range_high: 0.8, confidence_score: 0.80 },
@@ -251,7 +274,7 @@ const DEMO_COLLECTION = [
   {
     id: 'sandbox-9', is_sandbox: true, addedAt: '09 juin',
     report: {
-      identity: { name: 'Bulbizarre', number: '44/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', image: 'https://assets.tcgdex.net/fr/base/base1/44' },
+      identity: { name: 'Bulbizarre', number: '44/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/44' },
       condition: { overall_score: 6.0, centering: 6.5, corners: 5.5, edges: 6.0, surface: 6.0, confidence: 0.82 },
       pricing: { raw_price: 5, language_specific: true },
       valuation: { estimated_value: 2, value_range_low: 1.5, value_range_high: 2.5, confidence_score: 0.82 },
@@ -269,7 +292,7 @@ const DEMO_COLLECTION = [
   {
     id: 'sandbox-11', is_sandbox: true, addedAt: '11 juin',
     report: {
-      identity: { name: 'Mewtwo', number: '10/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/10' },
+      identity: { name: 'Mewtwo', number: '10/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/10' },
       condition: { overall_score: 9.3, centering: 9.5, corners: 9.0, edges: 9.0, surface: 9.5, confidence: 0.95 },
       pricing: { raw_price: 120, language_specific: true },
       valuation: { estimated_value: 220, value_range_low: 170, value_range_high: 280, confidence_score: 0.95 },
@@ -638,6 +661,7 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
                     <div style={{ fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                       {id.name}
                     </div>
+                    {id.set_name && <div style={{ fontFamily:"'Geist', system-ui", fontSize:10, color:theme.faint, marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{id.set_name}</div>}
                     <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted, display:'flex', alignItems:'center', gap:5, marginTop:2 }}>
                       <span>{id.number}</span><span>·</span>
                       <span>{LANG_FLAGS[id.language] || id.language}</span>
@@ -1130,6 +1154,7 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell }) {
               <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
                 {id.language && <Chip theme={theme}>{langFlag} {id.language}</Chip>}
                 {id.rarity && <Chip theme={theme}>{id.rarity}</Chip>}
+                {id.is_first_edition && <span className="first-ed-badge">✦ 1ère Édition</span>}
               </div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:8, fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:GRADE.good }}>
@@ -1242,12 +1267,21 @@ function CollectionReport({ theme, accent, item, back, openSell }) {
 
 /* ── Collection ───────────────────────────────────────────────────────── */
 function Collection({ theme, accent, collection, goTo, openSell, onRemove, tutorialActive }) {
-  const [sort, setSort] = React.useState('date');
-  const items = [...collection];
+  const [sort, setSort]               = React.useState('date');
+  const [seriesFilter, setSeriesFilter] = React.useState('all');
+
+  const allSeries = React.useMemo(() => {
+    const seen = new Set();
+    collection.forEach(i => { const s = i.report?.identity?.set_name; if (s) seen.add(s); });
+    return [...seen];
+  }, [collection]);
+
+  let items = [...collection];
+  if (seriesFilter !== 'all') items = items.filter(i => i.report?.identity?.set_name === seriesFilter);
   items.sort((a, b) => {
     if (sort === 'valeur') return (b.report?.valuation?.estimated_value || 0) - (a.report?.valuation?.estimated_value || 0);
     if (sort === 'etat')   return (b.report?.condition?.overall_score || 0) - (a.report?.condition?.overall_score || 0);
-    return b.id - a.id;
+    return 0;
   });
   const total = collection.reduce((s, i) => s + (i.report?.valuation?.estimated_value || 0), 0);
 
@@ -1279,6 +1313,25 @@ function Collection({ theme, accent, collection, goTo, openSell, onRemove, tutor
         })}
       </div>
 
+      {allSeries.length > 1 && (
+        <div style={{ padding:'6px 16px 0', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+          {[{k:'all', l:'Toutes'}, ...allSeries.map(s => ({k:s, l:s}))].map(o => {
+            const on = seriesFilter === o.k;
+            return (
+              <button key={o.k} onClick={() => setSeriesFilter(o.k)} style={{
+                height:26, padding:'0 10px', borderRadius:99, cursor:'pointer', flexShrink:0,
+                border:`1px solid ${on ? accent : theme.borderS}`,
+                background: on ? accent + '22' : 'transparent',
+                color: on ? accent : theme.faint,
+                fontFamily:"'Geist', system-ui", fontSize:11, fontWeight:500, whiteSpace:'nowrap',
+              }}>
+                {o.l}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div style={{ padding:'48px 24px', textAlign:'center' }}>
           <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
@@ -1295,14 +1348,18 @@ function Collection({ theme, accent, collection, goTo, openSell, onRemove, tutor
             const score = item.report?.condition?.overall_score || 0;
             const est   = item.report?.valuation?.estimated_value || 0;
             return (
-              <div key={item.id} style={{ border:`1px solid ${theme.borderS}`, borderRadius:14, background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:7 }}>
+              <div key={item.id} className={id.is_first_edition ? 'first-ed-card' : ''} style={{ border:`1px solid ${id.is_first_edition ? 'transparent' : theme.borderS}`, borderRadius:14, background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:7 }}>
                 <button onClick={() => goTo('collection-item', { collectionItem:item })} style={{ border:'none', background:'transparent', padding:0, cursor:'pointer' }}>
                   <CardImg imageUrl={id.image} card={{ type:'water', monogram:(id.name||'?')[0] }} w={156} radius={0.04}/>
                 </button>
                 <div>
-                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                    {id.name}
+                  <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1, minWidth:0 }}>
+                      {id.name}
+                    </div>
+                    {id.is_first_edition && <span className="first-ed-badge">1ère Éd.</span>}
                   </div>
+                  {id.set_name && <div style={{ fontFamily:"'Geist', system-ui", fontSize:10, color:theme.faint, marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{id.set_name}</div>}
                   <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, display:'flex', justifyContent:'space-between', marginTop:2 }}>
                     <span>{id.number}</span>
                     <span>{LANG_FLAGS[id.language] || id.language}</span>
@@ -1495,6 +1552,10 @@ function SellSheet({ theme, accent, item, onClose }) {
               <div style={{ marginTop:10, padding:'8px 10px', borderRadius:8, background:theme.surface2, border:`1px solid ${theme.borderS}`, fontSize:11, color:theme.muted, lineHeight:1.4, display:'flex', gap:7 }}>
                 <Icon.info size={12} color={theme.muted}/>
                 Le texte est copié dans le presse-papiers. Collez-le dans le formulaire de création d'annonce.
+              </div>
+              <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, background:'rgba(245,158,11,0.07)', border:'1px solid rgba(245,158,11,0.25)', fontSize:11, color:'#d97706', lineHeight:1.45, display:'flex', gap:7 }}>
+                <Icon.info size={12} color="#d97706"/>
+                <span>⚠️ La notation de l'état est une <strong>estimation IA</strong> à titre indicatif. Elle ne constitue pas un audit officiel d'une société de gradation professionnelle (PSA, BGS, CGC, etc.). Les scores peuvent différer d'une expertise réelle.</span>
               </div>
             </>
           )}

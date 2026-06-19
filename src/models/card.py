@@ -24,6 +24,7 @@ class CardIdentity:
     set_name: str
     set_code: Optional[str] = None
     rarity: Optional[str] = None
+    is_first_edition: Optional[bool] = None
 
 
 @dataclass
