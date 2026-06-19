@@ -20,14 +20,15 @@ PLATFORM_URLS: dict[str, str] = {
 
 SUPPORTED_PLATFORMS = set(PLATFORM_URLS)
 
-# PSA-style label from overall_score
+# Condition label using French CardMarket terminology (M/NM/EX/GD/LP/PL/PO)
 def _condition_label(score: float) -> str:
-    if score >= 9.5: return "Gem Mint (10)"
-    if score >= 8.5: return "Mint (9)"
-    if score >= 7.0: return "Near Mint–Mint (7–8)"
-    if score >= 5.0: return "Excellent–Near Mint (5–6)"
-    if score >= 3.0: return "Very Good (3–4)"
-    return "Poor–Fair (1–2)"
+    if score >= 9.5: return "Mint (M) — état parfait"
+    if score >= 8.0: return "Near Mint (NM) — quasi-parfait, infimes traces"
+    if score >= 6.5: return "Excellent (EX) — légères traces d'usure"
+    if score >= 5.0: return "Good (GD) — usure modérée visible"
+    if score >= 3.5: return "Light Played (LP) — usure notable, carte jouée"
+    if score >= 2.0: return "Played (PL) — fortement jouée, marques évidentes"
+    return "Poor (PO) — très mauvais état, dommages importants"
 
 SYSTEM_PROMPT = """You are an expert at writing optimised sales listings for collectible trading cards.
 Your task is to generate a complete listing for a Pokémon TCG card based on its grading report.
@@ -95,11 +96,13 @@ LISTING REQUIREMENTS:
 - {style_instruction}
 - {lang_instruction}
 - Always mention: full card name + number + set + language
-- Describe condition honestly using the grading scores
+- CRITICAL — condition label: use EXACTLY the label provided: "{cond_label}". Never replace it with a synonym or translation (e.g. do NOT write "Très Bon" if the label says "Light Played"). The condition label must appear verbatim in the description.
+- Describe condition honestly using the individual sub-scores (corners, edges, surface, centering)
 - Mention: "Envoi sécurisé sous sleeve + toploader"
 - Mention pricing is based on recent market sales
 - Suggested price = round(estimated_value) to nearest euro
 - Generate 5–8 relevant platform-appropriate tags
+- End the description with this exact line on its own paragraph: "(Notation indicative — non certifiée PSA/BGS/CGC)"
 
 Return ONLY this JSON object (no markdown, no extra text):
 {{

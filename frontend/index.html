@@ -220,19 +220,19 @@ const DEMO_COLLECTION = [
   {
     id: 'sandbox-3', is_sandbox: true, addedAt: '03 juin',
     report: {
-      identity: { name: 'Électhor', number: '16/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/16' },
-      condition: { overall_score: 8.5, centering: 8.5, corners: 8.5, edges: 8.5, surface: 8.5, confidence: 0.91 },
-      pricing: { raw_price: 75, language_specific: true },
-      valuation: { estimated_value: 55, value_range_low: 40, value_range_high: 70, confidence_score: 0.91 },
+      identity: { name: 'Pikachu VMAX', number: '44/185', language: 'FR', set_name: 'Épée et Bouclier', rarity: 'Rare VMAX', image: 'https://assets.tcgdex.net/fr/swsh/swsh1/44' },
+      condition: { overall_score: 8.2, centering: 8.5, corners: 8.0, edges: 8.0, surface: 8.5, confidence: 0.88 },
+      pricing: { raw_price: 22, language_specific: true },
+      valuation: { estimated_value: 17, value_range_low: 14, value_range_high: 20, confidence_score: 0.88 },
     },
   },
   {
     id: 'sandbox-4', is_sandbox: true, addedAt: '04 juin',
     report: {
-      identity: { name: 'Raichu', number: '14/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/14' },
-      condition: { overall_score: 6.5, centering: 7.0, corners: 6.0, edges: 6.5, surface: 6.5, confidence: 0.85 },
-      pricing: { raw_price: 25, language_specific: true },
-      valuation: { estimated_value: 18, value_range_low: 12, value_range_high: 25, confidence_score: 0.85 },
+      identity: { name: 'Dracaufeu VMAX', number: '20/189', language: 'FR', set_name: 'Ténèbres Embrasées', rarity: 'Rare VMAX', image: 'https://assets.tcgdex.net/fr/swsh/swsh3/20' },
+      condition: { overall_score: 9.0, centering: 9.0, corners: 9.0, edges: 9.0, surface: 9.0, confidence: 0.92 },
+      pricing: { raw_price: 20, language_specific: true },
+      valuation: { estimated_value: 17, value_range_low: 14, value_range_high: 19, confidence_score: 0.92 },
     },
   },
   {
@@ -265,10 +265,10 @@ const DEMO_COLLECTION = [
   {
     id: 'sandbox-8', is_sandbox: true, addedAt: '08 juin',
     report: {
-      identity: { name: 'Nidoking', number: '11/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/11' },
-      condition: { overall_score: 9.0, centering: 9.5, corners: 9.0, edges: 8.5, surface: 9.0, confidence: 0.93 },
-      pricing: { raw_price: 48, language_specific: true },
-      valuation: { estimated_value: 35, value_range_low: 25, value_range_high: 45, confidence_score: 0.93 },
+      identity: { name: 'Rayquaza V', number: '110/203', language: 'EN', set_name: 'Evolving Skies', rarity: 'Rare Ultra', image: 'https://assets.tcgdex.net/en/swsh/swsh7/110' },
+      condition: { overall_score: 7.5, centering: 7.5, corners: 7.5, edges: 7.5, surface: 7.5, confidence: 0.85 },
+      pricing: { raw_price: 12, language_specific: true },
+      valuation: { estimated_value: 9, value_range_low: 7, value_range_high: 11, confidence_score: 0.85 },
     },
   },
   {
@@ -1552,10 +1552,6 @@ function SellSheet({ theme, accent, item, onClose }) {
               <div style={{ marginTop:10, padding:'8px 10px', borderRadius:8, background:theme.surface2, border:`1px solid ${theme.borderS}`, fontSize:11, color:theme.muted, lineHeight:1.4, display:'flex', gap:7 }}>
                 <Icon.info size={12} color={theme.muted}/>
                 Le texte est copié dans le presse-papiers. Collez-le dans le formulaire de création d'annonce.
-              </div>
-              <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, background:'rgba(245,158,11,0.07)', border:'1px solid rgba(245,158,11,0.25)', fontSize:11, color:'#d97706', lineHeight:1.45, display:'flex', gap:7 }}>
-                <Icon.info size={12} color="#d97706"/>
-                <span>⚠️ La notation de l'état est une <strong>estimation IA</strong> à titre indicatif. Elle ne constitue pas un audit officiel d'une société de gradation professionnelle (PSA, BGS, CGC, etc.). Les scores peuvent différer d'une expertise réelle.</span>
               </div>
             </>
           )}
