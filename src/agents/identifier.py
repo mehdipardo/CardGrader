@@ -33,6 +33,7 @@ USER_PROMPT = """Identify this Pokémon TCG card and return a JSON object with e
   "set_name": "<official set/expansion name as printed on the card>",
   "set_code": "<short API set code if visible, otherwise null>",
   "rarity": "<rarity text or symbol if present, otherwise null>",
+  "is_first_edition": <true if the card displays a '1st Edition' / '1ère Édition' / 'Edition 1' stamp (a circle with '1' and 'EDITION' text, typically on the lower-left of the card illustration), false otherwise>,
   "confidence": <float 0.0-1.0 reflecting your certainty>
 }
 
@@ -41,6 +42,7 @@ Rules:
 - Detect language from keywords printed on the card, NOT from the Pokémon name (it can be identical across languages).
   Examples: "Faiblesse"/"Résistance" → FR | "Weakness"/"Resistance" → EN | "Schwäche"/"Resistenz" → DE |
   "Debilidad"/"Resistencia" → ES | "かわいさ"/"にげる" → JP | "약점"/"저항력" → KO
+- For is_first_edition: look for the oval/circle stamp with '1' and 'EDITION' near the lower-left of the card art. If absent or unreadable, use false.
 - If a field is unreadable, use null — never invent a value.
 - Return ONLY the JSON object, nothing else."""
 
@@ -177,6 +179,7 @@ class CardIdentifierAgent:
             set_name=data.get("set_name") or "",
             set_code=data.get("set_code"),
             rarity=data.get("rarity"),
+            is_first_edition=data.get("is_first_edition") or False,
         )
 
 

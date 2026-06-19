@@ -25,6 +25,30 @@
     @keyframes pgFade { from { opacity:0 } to { opacity:1 } }
     @keyframes pgRise { from { transform:translateY(40px); opacity:0 } to { transform:translateY(0); opacity:1 } }
     @keyframes spin { to { transform: rotate(360deg) } }
+    @keyframes firstEdGlow {
+      0%,100% { box-shadow: 0 0 0 2px #ffd649, 0 0 14px 5px rgba(255,214,73,0.4); }
+      33%  { box-shadow: 0 0 0 2px #c084fc, 0 0 14px 5px rgba(192,132,252,0.4); }
+      66%  { box-shadow: 0 0 0 2px #34d399, 0 0 14px 5px rgba(52,211,153,0.4); }
+    }
+    @keyframes firstEdBadge {
+      0%,100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .first-ed-card { animation: firstEdGlow 2.5s ease-in-out infinite; }
+    .first-ed-badge {
+      background: linear-gradient(90deg,#ffd649,#c084fc,#34d399,#ffd649);
+      background-size: 300% 100%;
+      animation: firstEdBadge 2.5s ease infinite;
+      color: #1a1b20;
+      font-weight: 700;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      letter-spacing: 0.01em;
+    }
     button { font-family: inherit; -webkit-appearance: none; }
     input, textarea { font-family: inherit; }
     ::-webkit-scrollbar { display: none; }
@@ -153,13 +177,13 @@ const PLATFORMS = [
 
 /* ── Sandbox demo collection ──────────────────────────────────────────── */
 const SANDBOX_COLLECTION = [
-  { id:'sandbox-1', remoteId:null, addedAt:'01 juin', is_sandbox:true, report:{ identity:{ name:'Tortank', number:'2/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', image:'https://assets.tcgdex.net/fr/base/base1/2' }, condition:{ centering:5.5, corners:2.5, edges:3.0, surface:3.5, overall_score:3.4, confidence:0.82 }, pricing:{ raw_price:110, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:110, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:77, value_range_low:64, value_range_high:90, confidence_score:0.82 } } },
-  { id:'sandbox-2', remoteId:null, addedAt:'02 juin', is_sandbox:true, report:{ identity:{ name:'Dracaufeu', number:'4/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', image:'https://assets.tcgdex.net/fr/base/base1/4' }, condition:{ centering:7.0, corners:6.0, edges:6.5, surface:7.0, overall_score:6.5, confidence:0.88 }, pricing:{ raw_price:280, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:280, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:210, value_range_low:180, value_range_high:240, confidence_score:0.88 } } },
+  { id:'sandbox-1', remoteId:null, addedAt:'01 juin', is_sandbox:true, report:{ identity:{ name:'Tortank', number:'2/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', is_first_edition:true, image:'https://assets.tcgdex.net/fr/base/base1/2' }, condition:{ centering:5.5, corners:2.5, edges:3.0, surface:3.5, overall_score:3.4, confidence:0.82 }, pricing:{ raw_price:110, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:110, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:77, value_range_low:64, value_range_high:90, confidence_score:0.82 } } },
+  { id:'sandbox-2', remoteId:null, addedAt:'02 juin', is_sandbox:true, report:{ identity:{ name:'Dracaufeu', number:'4/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', is_first_edition:true, image:'https://assets.tcgdex.net/fr/base/base1/4' }, condition:{ centering:7.0, corners:6.0, edges:6.5, surface:7.0, overall_score:6.5, confidence:0.88 }, pricing:{ raw_price:280, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:280, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:210, value_range_low:180, value_range_high:240, confidence_score:0.88 } } },
   { id:'sandbox-3', remoteId:null, addedAt:'03 juin', is_sandbox:true, report:{ identity:{ name:'Pikachu VMAX', number:'44/185', language:'FR', set_name:'Épée et Bouclier', set_code:'swsh1', rarity:'Rare VMAX', image:'https://assets.tcgdex.net/fr/swsh/swsh1/44' }, condition:{ centering:8.0, corners:7.5, edges:7.8, surface:8.0, overall_score:7.8, confidence:0.85 }, pricing:{ raw_price:22, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:22, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:18, value_range_low:15, value_range_high:21, confidence_score:0.85 } } },
   { id:'sandbox-4', remoteId:null, addedAt:'04 juin', is_sandbox:true, report:{ identity:{ name:'Charizard VMAX', number:'20/189', language:'EN', set_name:'Darkness Ablaze', set_code:'swsh3', rarity:'Rare VMAX', image:'https://assets.tcgdex.net/en/swsh/swsh3/20' }, condition:{ centering:9.0, corners:9.5, edges:9.2, surface:9.0, overall_score:9.2, confidence:0.92 }, pricing:{ raw_price:30, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:30, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:26, value_range_low:23, value_range_high:29, confidence_score:0.92 } } },
   { id:'sandbox-5', remoteId:null, addedAt:'05 juin', is_sandbox:true, report:{ identity:{ name:'Dracaufeu VMAX', number:'20/189', language:'FR', set_name:'Ténèbres Embrasées', set_code:'swsh3', rarity:'Rare VMAX', image:'https://assets.tcgdex.net/fr/swsh/swsh3/20' }, condition:{ centering:8.2, corners:8.0, edges:8.5, surface:8.1, overall_score:8.1, confidence:0.87 }, pricing:{ raw_price:20, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:20, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:17, value_range_low:14, value_range_high:19, confidence_score:0.87 } } },
   { id:'sandbox-6', remoteId:null, addedAt:'06 juin', is_sandbox:true, report:{ identity:{ name:'Magicarpe', number:'60/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Commune', image:'https://assets.tcgdex.net/fr/base/base1/60' }, condition:{ centering:3.5, corners:2.0, edges:2.5, surface:3.0, overall_score:2.8, confidence:0.80 }, pricing:{ raw_price:4, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:4, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:3, value_range_low:2, value_range_high:4, confidence_score:0.80 } } },
-  { id:'sandbox-7', remoteId:null, addedAt:'07 juin', is_sandbox:true, report:{ identity:{ name:'Alakazam', number:'1/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', image:'https://assets.tcgdex.net/fr/base/base1/1' }, condition:{ centering:9.0, corners:9.2, edges:9.1, surface:9.0, overall_score:9.1, confidence:0.91 }, pricing:{ raw_price:45, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:45, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:40, value_range_low:35, value_range_high:44, confidence_score:0.91 } } },
+  { id:'sandbox-7', remoteId:null, addedAt:'07 juin', is_sandbox:true, report:{ identity:{ name:'Alakazam', number:'1/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare Holo', is_first_edition:true, image:'https://assets.tcgdex.net/fr/base/base1/1' }, condition:{ centering:9.0, corners:9.2, edges:9.1, surface:9.0, overall_score:9.1, confidence:0.91 }, pricing:{ raw_price:45, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:45, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:40, value_range_low:35, value_range_high:44, confidence_score:0.91 } } },
   { id:'sandbox-8', remoteId:null, addedAt:'08 juin', is_sandbox:true, report:{ identity:{ name:'Mewtwo GX', number:'SV59/SV94', language:'EN', set_name:'Hidden Fates: Shiny Vault', set_code:'sma', rarity:'Shiny Rare GX', image:'https://assets.tcgdex.net/en/sm/sma/SV59' }, condition:{ centering:7.0, corners:7.5, edges:7.2, surface:7.3, overall_score:7.2, confidence:0.84 }, pricing:{ raw_price:65, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:65, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:50, value_range_low:43, value_range_high:57, confidence_score:0.84 } } },
   { id:'sandbox-9', remoteId:null, addedAt:'09 juin', is_sandbox:true, report:{ identity:{ name:'Pikachu V', number:'43/185', language:'FR', set_name:'Épée et Bouclier', set_code:'swsh1', rarity:'Rare Ultra', image:'https://assets.tcgdex.net/fr/swsh/swsh1/43' }, condition:{ centering:4.5, corners:4.0, edges:5.0, surface:4.5, overall_score:4.5, confidence:0.78 }, pricing:{ raw_price:12, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:12, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:8, value_range_low:7, value_range_high:10, confidence_score:0.78 } } },
   { id:'sandbox-10', remoteId:null, addedAt:'10 juin', is_sandbox:true, report:{ identity:{ name:'Ronflex', number:'36/102', language:'FR', set_name:'Set de Base', set_code:'base1', rarity:'Rare', image:'https://assets.tcgdex.net/fr/base/base1/36' }, condition:{ centering:5.5, corners:5.8, edges:5.2, surface:5.8, overall_score:5.6, confidence:0.81 }, pricing:{ raw_price:18, currency:'EUR', grade_10:null, grade_9:null, grade_7:null, grade_5:null, grade_3:null, cardmarket_trend:18, source_detail:'CardMarket', language_specific:true }, valuation:{ estimated_value:14, value_range_low:12, value_range_high:16, confidence_score:0.81 } } },
@@ -540,6 +564,7 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
                     <div style={{ fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                       {id.name}
                     </div>
+                    {id.set_name && <div style={{ fontFamily:"'Geist', system-ui", fontSize:10, color:theme.faint, marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{id.set_name}</div>}
                     <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted, display:'flex', alignItems:'center', gap:5, marginTop:2 }}>
                       <span>{id.number}</span><span>·</span>
                       <span>{LANG_FLAGS[id.language] || id.language}</span>
@@ -1029,9 +1054,10 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell }) {
                 {id.number && <span>{id.number}</span>}
                 {id.set_name && <><span style={{ opacity:0.4 }}>·</span><span>{id.set_name}</span></>}
               </div>
-              <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap', alignItems:'center' }}>
                 {id.language && <Chip theme={theme}>{langFlag} {id.language}</Chip>}
                 {id.rarity && <Chip theme={theme}>{id.rarity}</Chip>}
+                {id.is_first_edition && <span className="first-ed-badge">✦ 1ère Édition</span>}
               </div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:8, fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:GRADE.good }}>
@@ -1144,12 +1170,21 @@ function CollectionReport({ theme, accent, item, back, openSell }) {
 
 /* ── Collection ───────────────────────────────────────────────────────── */
 function Collection({ theme, accent, collection, goTo, openSell, onRemove, isSandbox }) {
-  const [sort, setSort] = React.useState('date');
-  const items = [...collection];
+  const [sort, setSort]         = React.useState('date');
+  const [seriesFilter, setSeriesFilter] = React.useState('all');
+
+  const allSeries = React.useMemo(() => {
+    const seen = new Set();
+    collection.forEach(i => { const s = i.report?.identity?.set_name; if (s) seen.add(s); });
+    return [...seen];
+  }, [collection]);
+
+  let items = [...collection];
+  if (seriesFilter !== 'all') items = items.filter(i => i.report?.identity?.set_name === seriesFilter);
   items.sort((a, b) => {
     if (sort === 'valeur') return (b.report?.valuation?.estimated_value || 0) - (a.report?.valuation?.estimated_value || 0);
     if (sort === 'etat')   return (b.report?.condition?.overall_score || 0) - (a.report?.condition?.overall_score || 0);
-    return b.id - a.id;
+    return 0;
   });
   const total = collection.reduce((s, i) => s + (i.report?.valuation?.estimated_value || 0), 0);
 
@@ -1181,6 +1216,25 @@ function Collection({ theme, accent, collection, goTo, openSell, onRemove, isSan
         })}
       </div>
 
+      {allSeries.length > 1 && (
+        <div style={{ padding:'6px 16px 0', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+          {[{k:'all', l:'Toutes'},...allSeries.map(s => ({k:s, l:s}))].map(o => {
+            const on = seriesFilter === o.k;
+            return (
+              <button key={o.k} onClick={() => setSeriesFilter(o.k)} style={{
+                height:26, padding:'0 10px', borderRadius:99, cursor:'pointer', flexShrink:0,
+                border:`1px solid ${on ? accent : theme.borderS}`,
+                background: on ? accent + '22' : 'transparent',
+                color: on ? accent : theme.faint,
+                fontFamily:"'Geist', system-ui", fontSize:11, fontWeight:500, whiteSpace:'nowrap',
+              }}>
+                {o.l}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div style={{ padding:'48px 24px', textAlign:'center' }}>
           <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
@@ -1197,14 +1251,18 @@ function Collection({ theme, accent, collection, goTo, openSell, onRemove, isSan
             const score = item.report?.condition?.overall_score || 0;
             const est   = item.report?.valuation?.estimated_value || 0;
             return (
-              <div key={item.id} style={{ border:`1px solid ${theme.borderS}`, borderRadius:14, background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:7 }}>
+              <div key={item.id} className={id.is_first_edition ? 'first-ed-card' : ''} style={{ border:`1px solid ${id.is_first_edition ? 'transparent' : theme.borderS}`, borderRadius:14, background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:7 }}>
                 <button onClick={() => goTo('collection-item', { collectionItem:item })} style={{ border:'none', background:'transparent', padding:0, cursor:'pointer' }}>
                   <CardImg imageUrl={id.image} card={{ type:'water', monogram:(id.name||'?')[0] }} w={156} radius={0.04}/>
                 </button>
                 <div>
-                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                    {id.name}
+                  <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1, minWidth:0 }}>
+                      {id.name}
+                    </div>
+                    {id.is_first_edition && <span className="first-ed-badge">1ère Éd.</span>}
                   </div>
+                  {id.set_name && <div style={{ fontFamily:"'Geist', system-ui", fontSize:10, color:theme.faint, marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{id.set_name}</div>}
                   <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, display:'flex', justifyContent:'space-between', marginTop:2 }}>
                     <span>{id.number}</span>
                     <span>{LANG_FLAGS[id.language] || id.language}</span>
@@ -1395,6 +1453,10 @@ function SellSheet({ theme, accent, item, onClose }) {
               <div style={{ marginTop:10, padding:'8px 10px', borderRadius:8, background:theme.surface2, border:`1px solid ${theme.borderS}`, fontSize:11, color:theme.muted, lineHeight:1.4, display:'flex', gap:7 }}>
                 <Icon.info size={12} color={theme.muted}/>
                 Le texte est copié dans le presse-papiers. Collez-le dans le formulaire de création d'annonce.
+              </div>
+              <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, background:'rgba(245,158,11,0.07)', border:'1px solid rgba(245,158,11,0.25)', fontSize:11, color:'#d97706', lineHeight:1.45, display:'flex', gap:7 }}>
+                <Icon.info size={12} color="#d97706" style={{ flexShrink:0, marginTop:1 }}/>
+                <span>⚠️ La notation de l'état est une <strong>estimation IA</strong> à titre indicatif. Elle ne constitue pas un audit officiel d'une société de gradation professionnelle (PSA, BGS, CGC, etc.). Les scores peuvent différer d'une expertise réelle.</span>
               </div>
             </>
           )}
