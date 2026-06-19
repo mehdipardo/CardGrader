@@ -22,13 +22,62 @@ SUPPORTED_PLATFORMS = set(PLATFORM_URLS)
 
 # Condition label using French CardMarket terminology (M/NM/EX/GD/LP/PL/PO)
 def _condition_label(score: float) -> str:
-    if score >= 9.5: return "Mint (M) — état parfait"
-    if score >= 8.0: return "Near Mint (NM) — quasi-parfait, infimes traces"
-    if score >= 6.5: return "Excellent (EX) — légères traces d'usure"
-    if score >= 5.0: return "Good (GD) — usure modérée visible"
-    if score >= 3.5: return "Light Played (LP) — usure notable, carte jouée"
-    if score >= 2.0: return "Played (PL) — fortement jouée, marques évidentes"
-    return "Poor (PO) — très mauvais état, dommages importants"
+    if score >= 9.5: return "Mint (M)"
+    if score >= 8.0: return "Near Mint (NM)"
+    if score >= 6.5: return "Excellent (EX)"
+    if score >= 5.0: return "Good (GD)"
+    if score >= 3.5: return "Light Played (LP)"
+    if score >= 2.0: return "Played (PL)"
+    return "Poor (PO)"
+
+
+def _score_writing_guide(score: float) -> str:
+    """Return tone and vocabulary instructions matching the score range."""
+    if score >= 9.5:
+        return (
+            "Score 9.5–10 → carte parfaite, état collection premium. "
+            "Tu peux écrire 'état parfait', 'sans défaut', 'neuve', 'impeccable'."
+        )
+    if score >= 8.0:
+        return (
+            "Score 8–9.4 → quasi-parfaite, infimes traces peu visibles à l'œil nu. "
+            "Tu peux écrire 'quasi-parfaite', 'infimes traces', 'très bel état'. "
+            "INTERDIT : 'parfait', 'neuve', 'impeccable'."
+        )
+    if score >= 6.5:
+        return (
+            "Score 6.5–7.9 → légères traces d'usure, mais carte encore belle. "
+            "Tu peux écrire 'légères traces d'usure', 'bon état général'. "
+            "INTERDIT : 'parfait', 'neuve', 'quasi-parfaite', 'impeccable', 'excellent état'."
+        )
+    if score >= 5.0:
+        return (
+            "Score 5–6.4 → usure modérée clairement visible. "
+            "Décris honnêtement : 'usure modérée visible', 'état correct', 'traces d'utilisation'. "
+            "INTERDIT : 'très bon état', 'excellent', 'parfait', tout terme positif sur l'état."
+        )
+    if score >= 3.5:
+        return (
+            "Score 3.5–4.9 → carte clairement jouée, usure notable sur plusieurs critères. "
+            "OBLIGATOIRE : mentionner que la carte présente de l'usure. "
+            "Utilise : 'carte jouée', 'marques d'usure visibles', 'état acceptable pour le jeu'. "
+            "INTERDIT ABSOLU : 'très bon état', 'bon état', 'bel état', 'excellent', 'parfait', "
+            "'quasi-parfait', tout terme positif sur la condition physique."
+        )
+    if score >= 2.0:
+        return (
+            "Score 2–3.4 → carte fortement jouée, dommages évidents. "
+            "OBLIGATOIRE : être très explicite sur les défauts. "
+            "Utilise : 'fortement jouée', 'usure importante', 'dommages visibles', "
+            "'à réserver aux joueurs'. "
+            "INTERDIT ABSOLU : tout qualificatif positif sur l'état de la carte."
+        )
+    return (
+        "Score < 2 → carte en mauvais état, dommages importants. "
+        "Sois entièrement honnête : 'état médiocre', 'dommages importants', "
+        "'à titre de collection uniquement'. "
+        "INTERDIT ABSOLU : tout qualificatif positif sur l'état."
+    )
 
 SYSTEM_PROMPT = """You are an expert at writing optimised sales listings for collectible trading cards.
 Your task is to generate a complete listing for a Pokémon TCG card based on its grading report.
@@ -40,9 +89,10 @@ def _build_user_prompt(report: CardReport, platform: str, language: str) -> str:
     pricing   = report.pricing
 
     # Grading summary
-    cond_label = _condition_label(condition.overall_score)
+    cond_label   = _condition_label(condition.overall_score)
+    writing_guide = _score_writing_guide(condition.overall_score)
     grading_detail = (
-        f"Overall: {condition.overall_score}/10 ({cond_label}) | "
+        f"Overall: {condition.overall_score}/10 → {cond_label} | "
         f"Corners: {condition.corners}/10 | "
         f"Edges: {condition.edges}/10 | "
         f"Surface: {condition.surface}/10 | "
@@ -92,11 +142,14 @@ CARD DATA:
 - Estimated value given condition: {report.estimated_value:.2f} {pricing.currency}
 - Price range: {report.value_range_low:.2f} – {report.value_range_high:.2f} {pricing.currency}
 
+CONDITION WRITING GUIDE (mandatory — apply throughout the entire description):
+{writing_guide}
+
 LISTING REQUIREMENTS:
 - {style_instruction}
 - {lang_instruction}
 - Always mention: full card name + number + set + language
-- CRITICAL — condition label: use EXACTLY the label provided: "{cond_label}". Never replace it with a synonym or translation (e.g. do NOT write "Très Bon" if the label says "Light Played"). The condition label must appear verbatim in the description.
+- Condition label to use verbatim: "{cond_label}". Never replace it with a synonym.
 - Describe condition honestly using the individual sub-scores (corners, edges, surface, centering)
 - Mention: "Envoi sécurisé sous sleeve + toploader"
 - Mention pricing is based on recent market sales
