@@ -195,6 +195,18 @@ const Icon = {
   euro:   p => <svg width={p.size||14} height={p.size||14} viewBox="0 0 24 24" fill="none"><path d="M17 6.5A6 6 0 0 0 7 12a6 6 0 0 0 10 5.5M4 10h9M4 14h9" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
   user:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round"/></svg>,
   gear:   p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke={p.color||'currentColor'} strokeWidth="1.6"/></svg>,
+  layers: p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinejoin="round"/><path d="M2 12l10 5 10-5" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 17l10 5 10-5" stroke={p.color||'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  dex:    p => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke={p.color||'currentColor'} strokeWidth="1.6"/><path d="M3 12h18M12 3c-3 3-4.5 6-4.5 9s1.5 6 4.5 9M12 3c3 3 4.5 6 4.5 9s-1.5 6-4.5 9" stroke={p.color||'currentColor'} strokeWidth="1.6"/></svg>,
+};
+
+/* ── Set total card counts (official) for completion % ───────────────── */
+const SET_TOTALS = {
+  base1:102, jungle:64, fossil:62, base2:130, gym1:132, gym2:132,
+  neo1:111, neo2:75, neo3:66, neo4:105,
+  swsh1:216, swsh2:189, swsh3:201, swsh4:198, swsh5:198, swsh6:198,
+  swsh7:237, swsh8:250, swsh9:189, swsh10:196, swsh11:180, swsh12:195,
+  sv1:198, sv2:193, sv3:193, sv4:193, sv5:162, sv6:163, sv7:167, sv8:167,
+  'sv3pt5':207, 'sv4pt5':193, 'sv6pt5':131,
 };
 
 /* ── DEMO COLLECTION (tutorial sandbox) ──────────────────────────────── */
@@ -1861,6 +1873,310 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
   );
 }
 
+/* ── SetsPage ─────────────────────────────────────────────────────────── */
+function SetsPage({ theme, accent, collection, goTo }) {
+  const groups = React.useMemo(() => {
+    const map = {};
+    collection.forEach(item => {
+      const id = item.report?.identity || {};
+      const key = id.set_name || 'Inconnu';
+      if (!map[key]) map[key] = { set_name: key, set_code: id.set_code || null, cards: [], total_value: 0 };
+      map[key].cards.push(item);
+      map[key].total_value += item.report?.valuation?.estimated_value || 0;
+    });
+    return Object.values(map).sort((a, b) => b.cards.length - a.cards.length);
+  }, [collection]);
+
+  if (collection.length === 0) {
+    return (
+      <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
+        <div style={{ padding:'6px 20px 16px' }}>
+          <div style={{ fontFamily:"'Geist', system-ui", fontSize:26, fontWeight:600, letterSpacing:'-0.03em', color:theme.text }}>Mes Sets</div>
+        </div>
+        <div style={{ padding:'48px 24px', textAlign:'center' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
+          <div style={{ fontSize:14, fontWeight:600, color:theme.text }}>Aucune carte dans ta collection</div>
+          <div style={{ fontSize:12.5, color:theme.muted, marginTop:6 }}>Scanne des cartes pour suivre la complétion de tes sets.</div>
+          <button onClick={() => goTo('scan-upload')} style={{ marginTop:20, height:44, padding:'0 24px', borderRadius:12, border:'none', background:theme.text, color:theme.bg, fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, cursor:'pointer' }}>
+            Scanner une carte
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
+      <div style={{ padding:'6px 20px 10px' }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:26, fontWeight:600, letterSpacing:'-0.03em', color:theme.text }}>Mes Sets</div>
+        <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:12, color:theme.muted, marginTop:4 }}>
+          {groups.length} set{groups.length > 1 ? 's' : ''} · {collection.length} cartes
+        </div>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:10, padding:'4px 16px 0' }}>
+        {groups.map(g => {
+          const total = g.set_code ? SET_TOTALS[g.set_code] : null;
+          const pct   = total ? Math.round((g.cards.length / total) * 100) : null;
+          const sampleImg = g.cards[0]?.report?.identity?.image;
+          return (
+            <button key={g.set_name} onClick={() => goTo('set-detail', { setName: g.set_name, setCode: g.set_code })}
+              style={{ border:`1px solid ${theme.borderS}`, borderRadius:16, background:theme.surface, padding:'12px 14px', cursor:'pointer', display:'flex', gap:12, alignItems:'center', textAlign:'left' }}>
+              <div style={{ width:48, height:48, borderRadius:10, overflow:'hidden', flexShrink:0, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {sampleImg
+                  ? <img src={sampleImg + '/high.webp'} style={{ width:48, height:68, objectFit:'cover', marginTop:-10 }} onError={e => { e.target.style.display='none'; }}/>
+                  : <Icon.layers size={20} color={theme.faint}/>}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:"'Geist', system-ui", fontSize:14, fontWeight:600, color:theme.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{g.set_name}</div>
+                <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:11, color:theme.muted, marginTop:2 }}>
+                  {g.cards.length} carte{g.cards.length > 1 ? 's' : ''}
+                  {total ? ` / ${total}` : ''}
+                  {pct !== null ? `  ·  ${pct}%` : ''}
+                  {' · '}<span style={{ color:theme.text }}>€ {Math.round(g.total_value)}</span>
+                </div>
+                {total && (
+                  <div style={{ height:4, borderRadius:99, background:theme.chipBg, marginTop:7, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${pct}%`, background:pct >= 80 ? GRADE.good : pct >= 40 ? accent : GRADE.mid, borderRadius:99, transition:'width .4s' }}/>
+                  </div>
+                )}
+              </div>
+              <Icon.chev size={14} color={theme.faint}/>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── SetDetailPage ─────────────────────────────────────────────────────── */
+function SetDetailPage({ theme, accent, collection, setName, setCode, goTo, back }) {
+  const cards = collection.filter(i => (i.report?.identity?.set_name || 'Inconnu') === setName);
+  const total = setCode ? SET_TOTALS[setCode] : null;
+  const pct   = total ? Math.round((cards.length / total) * 100) : null;
+  const totalValue = cards.reduce((s, i) => s + (i.report?.valuation?.estimated_value || 0), 0);
+
+  return (
+    <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
+      <div style={{ padding:'8px 16px 0', display:'flex', alignItems:'center', gap:12 }}>
+        <button onClick={back} style={{ width:36, height:36, border:`1px solid ${theme.border}`, borderRadius:99, background:theme.surface, color:theme.text, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <Icon.back size={18}/>
+        </button>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:"'Geist', system-ui", fontSize:18, fontWeight:700, letterSpacing:'-0.02em', color:theme.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{setName}</div>
+          <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:11, color:theme.muted, marginTop:1 }}>
+            {cards.length}{total ? `/${total}` : ''} cartes · € {Math.round(totalValue)}
+          </div>
+        </div>
+      </div>
+
+      {total && (
+        <div style={{ padding:'12px 16px 0' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+            <span style={{ fontFamily:"'Geist', system-ui", fontSize:12, color:theme.muted }}>Complétion</span>
+            <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:12, fontWeight:600, color: pct >= 80 ? GRADE.good : pct >= 40 ? accent : GRADE.mid }}>{pct}%</span>
+          </div>
+          <div style={{ height:6, borderRadius:99, background:theme.chipBg, overflow:'hidden' }}>
+            <div style={{ height:'100%', width:`${pct}%`, background:pct >= 80 ? GRADE.good : pct >= 40 ? accent : GRADE.mid, borderRadius:99, transition:'width .5s' }}/>
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding:'14px 16px 0' }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:600, color:theme.text, marginBottom:10 }}>Cartes possédées</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {cards.map(item => {
+            const id    = item.report?.identity || {};
+            const score = item.report?.condition?.overall_score || 0;
+            const est   = item.report?.valuation?.estimated_value || 0;
+            return (
+              <div key={item.id} className={id.is_first_edition ? 'first-ed-card' : ''} onClick={() => goTo('collection-item', { collectionItem: item })}
+                style={{ border:`1px solid ${id.is_first_edition ? 'transparent' : theme.borderS}`, borderRadius:14, background:theme.surface, padding:8, display:'flex', flexDirection:'column', gap:7, cursor:'pointer' }}>
+                <CardImg imageUrl={id.image} card={{ type:'water', monogram:(id.name||'?')[0] }} w={156} radius={0.04}/>
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:600, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1, minWidth:0 }}>{id.name}</div>
+                    {id.is_first_edition && <span className="first-ed-badge">1ère Éd.</span>}
+                  </div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.muted, display:'flex', justifyContent:'space-between', marginTop:2 }}>
+                    <span>{id.number}</span>
+                    <span style={{ color:gradeColor(score) }}>{score.toFixed(1)}</span>
+                  </div>
+                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:600, color:theme.text, marginTop:3 }}>€ {Math.round(est)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ padding:'20px 16px 0' }}>
+        <button onClick={() => goTo('scan-upload')} style={{ width:'100%', height:44, border:`1px solid ${theme.border}`, borderRadius:12, background:'transparent', color:theme.text, fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+          <Icon.scan size={16}/> Scanner une carte manquante
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Pokédex gen ranges ────────────────────────────────────────────────── */
+const GENS = [
+  { n:1, label:'Génération I',    start:1,   end:151  },
+  { n:2, label:'Génération II',   start:152, end:251  },
+  { n:3, label:'Génération III',  start:252, end:386  },
+  { n:4, label:'Génération IV',   start:387, end:493  },
+  { n:5, label:'Génération V',    start:494, end:649  },
+  { n:6, label:'Génération VI',   start:650, end:721  },
+  { n:7, label:'Génération VII',  start:722, end:809  },
+  { n:8, label:'Génération VIII', start:810, end:905  },
+  { n:9, label:'Génération IX',   start:906, end:1025 },
+];
+const TOTAL_POKEMON = 1025;
+
+const POKEMON_FR = {
+  1:'Bulbizarre',2:'Herbizarre',3:'Florizarre',4:'Salamèche',5:'Reptincel',6:'Dracaufeu',
+  7:'Carapuce',8:'Carabaffe',9:'Tortank',10:'Chenipan',11:'Chrysacier',12:'Papilusion',
+  13:'Aspicot',14:'Coconfort',15:'Dardargnan',16:'Roucool',17:'Roucoups',18:'Roucarnage',
+  19:'Rattata',20:'Rattatac',21:'Piafabec',22:'Rapasdepic',23:'Abo',24:'Arbok',
+  25:'Pikachu',26:'Raichu',27:'Sabelette',28:'Sablaireau',29:'Nidoran♀',30:'Nidorina',
+  31:'Nidoqueen',32:'Nidoran♂',33:'Nidorino',34:'Nidoking',35:'Mélofée',36:'Mélodelfe',
+  37:'Goupix',38:'Feunard',39:'Rondoudou',40:'Grodoudou',41:'Nosferapti',42:'Nosferalto',
+  43:'Mystherbe',44:'Ortide',45:'Rafflesia',46:'Paras',47:'Parasect',48:'Mimitoss',
+  49:'Aéromite',50:'Taupiqueur',51:'Triopikeur',52:'Miaouss',53:'Persian',54:'Psykokwak',
+  55:'Akwakwak',56:'Férosinge',57:'Colossinge',58:'Caninos',59:'Arcanin',60:'Têtarte',
+  61:'Tétarte',62:'Tartard',63:'Abra',64:'Kadabra',65:'Alakazam',66:'Machoc',67:'Machopeur',
+  68:'Mackogneur',69:'Chétiflor',70:'Boustiflor',71:'Empiflor',72:'Tentacool',73:'Tentacruel',
+  74:'Racaillou',75:'Gravalanch',76:'Grolem',77:'Ponyta',78:'Galopa',79:'Ramoloss',80:'Flagadoss',
+  81:'Magnéti',82:'Magnéton',83:'Canarticho',84:'Doduo',85:'Dodrio',86:'Otaria',87:'Lamantine',
+  88:'Tadmorv',89:'Grotadmorv',90:'Kokiyas',91:'Crustabri',92:'Fantominus',93:'Spectrum',
+  94:'Ectoplasma',95:'Onix',96:'Soporifik',97:'Hypnomade',98:'Krabby',99:'Krabboss',
+  100:'Voltorbe',101:'Électrode',102:'Nœunœuf',103:'Noadkoko',104:'Osselait',105:'Ossatueur',
+  106:'Kicklee',107:'Tygnon',108:'Lipoutou',109:'Smogo',110:'Smogogo',111:'Rhinocorne',
+  112:'Rhinoféros',113:'Leveinard',114:'Saquedeneu',115:'Kangourex',116:'Hypotrempe',
+  117:'Hypocéan',118:'Poissirène',119:'Poissoroy',120:'Stari',121:'Staross',122:'M. Mime',
+  123:'Insecateur',124:'Lippoutou',125:'Élektek',126:'Magmar',127:'Scarabrute',
+  128:'Tauros',129:'Magicarpe',130:'Léviator',131:'Lokhlass',132:'Métamorph',
+  133:'Évoli',134:'Aquali',135:'Voltali',136:'Pyroli',137:'Porygon',138:'Amonita',
+  139:'Amonistar',140:'Kabuto',141:'Kabutops',142:'Ptéra',143:'Ronflex',144:'Artikodin',
+  145:'Électhor',146:'Sulfura',147:'Minidraco',148:'Draco',149:'Dracolosse',150:'Mewtwo',151:'Mew',
+};
+
+function pokeNameFr(id) { return POKEMON_FR[id] || `#${id}`; }
+
+/* ── PokedexPage ──────────────────────────────────────────────────────── */
+function PokedexPage({ theme, accent, collection, goTo }) {
+  const [openGen, setOpenGen] = React.useState(1);
+
+  // Build owned map: base card name (lowercase) → count
+  const ownedMap = React.useMemo(() => {
+    const map = {};
+    collection.forEach(item => {
+      const raw = (item.report?.identity?.name || '').toLowerCase().trim();
+      // Strip suffixes like "vmax", "ex", "v", "gx", etc. to get the base Pokémon name
+      const base = raw.replace(/\s+(vmax|vstar|ex|gx|v|tag team|radiant|prism star|break|lv\.x)$/i, '').trim();
+      if (base) map[base] = (map[base] || 0) + 1;
+    });
+    return map;
+  }, [collection]);
+
+  const isOwned = (id) => {
+    const fr = pokeNameFr(id).toLowerCase();
+    return !!(ownedMap[fr]);
+  };
+  const getCount = (id) => ownedMap[pokeNameFr(id).toLowerCase()] || 0;
+
+  const totalOwned = React.useMemo(() => {
+    let n = 0;
+    for (let id = 1; id <= TOTAL_POKEMON; id++) { if (isOwned(id)) n++; }
+    return n;
+  }, [ownedMap]);
+
+  return (
+    <div style={{ paddingBottom:92, overflowY:'auto', height:'100%' }}>
+      <div style={{ padding:'6px 20px 10px' }}>
+        <div style={{ fontFamily:"'Geist', system-ui", fontSize:26, fontWeight:600, letterSpacing:'-0.03em', color:theme.text }}>Pokédex</div>
+        <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:12, color:theme.muted, marginTop:4 }}>
+          {totalOwned} / {TOTAL_POKEMON} Pokémon
+        </div>
+        <div style={{ height:4, borderRadius:99, background:theme.chipBg, marginTop:8, overflow:'hidden' }}>
+          <div style={{ height:'100%', width:`${(totalOwned/TOTAL_POKEMON)*100}%`, background:accent, borderRadius:99 }}/>
+        </div>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:6, padding:'4px 16px 0' }}>
+        {GENS.map(g => {
+          let ownedInGen = 0;
+          for (let id = g.start; id <= g.end; id++) { if (isOwned(id)) ownedInGen++; }
+          const total = g.end - g.start + 1;
+          const pctG = Math.round(ownedInGen / total * 100);
+          const isOpen = openGen === g.n;
+
+          return (
+            <div key={g.n} style={{ border:`1px solid ${theme.borderS}`, borderRadius:14, background:theme.surface, overflow:'hidden' }}>
+              <button onClick={() => setOpenGen(isOpen ? 0 : g.n)} style={{
+                width:'100%', padding:'12px 14px', border:'none', background:'transparent', cursor:'pointer',
+                display:'flex', alignItems:'center', gap:10, textAlign:'left',
+              }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:13.5, fontWeight:600, color:theme.text }}>{g.label}</div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted, marginTop:2 }}>
+                    {ownedInGen} / {total} · {pctG}%
+                  </div>
+                  <div style={{ height:3, borderRadius:99, background:theme.chipBg, marginTop:5, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${pctG}%`, background:pctG >= 80 ? GRADE.good : pctG >= 40 ? accent : GRADE.mid, borderRadius:99 }}/>
+                  </div>
+                </div>
+                <span style={{ fontSize:12, color:theme.faint, transition:'transform .2s', display:'inline-block', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
+              </button>
+
+              {isOpen && (
+                <div style={{ padding:'0 12px 12px', display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:5 }}>
+                  {Array.from({ length: g.end - g.start + 1 }, (_, i) => {
+                    const id = g.start + i;
+                    const owned = isOwned(id);
+                    const count = getCount(id);
+                    return (
+                      <div key={id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, opacity: owned ? 1 : 0.3, position:'relative' }}>
+                        <div style={{ width:42, height:42, borderRadius:8, background:theme.chipBg, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', border: owned ? `1px solid ${accent}55` : `1px solid transparent` }}>
+                          <img
+                            src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`}
+                            width={36} height={36}
+                            style={{ imageRendering:'pixelated', filter: owned ? 'none' : 'brightness(0)' }}
+                            onError={e => { e.target.style.opacity='0'; }}
+                          />
+                        </div>
+                        {count > 1 && (
+                          <span style={{ position:'absolute', top:-2, right:-2, background:accent, color:'#fff', fontSize:8, fontWeight:700, borderRadius:99, padding:'1px 3px', fontFamily:"'Geist Mono', monospace", lineHeight:1 }}>{count}x</span>
+                        )}
+                        <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:8, color:theme.faint, textAlign:'center' }}>{id}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Toast notification ────────────────────────────────────────────────── */
+function Toast({ message, onDone }) {
+  React.useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ position:'fixed', bottom:100, left:'50%', transform:'translateX(-50%)', zIndex:200,
+      background:GRADE.good, color:'#fff', borderRadius:12, padding:'10px 18px',
+      fontFamily:"'Geist', system-ui", fontSize:13, fontWeight:600,
+      boxShadow:'0 4px 20px rgba(0,0,0,0.3)', animation:'pgRise .25s ease',
+      whiteSpace:'nowrap', maxWidth:'90vw', textAlign:'center' }}>
+      {message}
+    </div>
+  );
+}
+
 /* ── SandboxBanner ───────────────────────────────────────────────────── */
 function SandboxBanner({ theme, accent, onAuth, onGuest }) {
   const [expanded, setExpanded] = React.useState(false);
@@ -1926,25 +2242,27 @@ function TutorialExitOverlay({ theme }) {
 function BottomTabs({ tab, setTab, theme, accent }) {
   const items = [
     { k:'home',       l:'Accueil',    icon:'home' },
+    { k:'sets',       l:'Sets',       icon:'layers' },
     { k:'scan',       l:'Scanner',    icon:'scan', center:true },
+    { k:'dex',        l:'Pokédex',    icon:'dex' },
     { k:'collection', l:'Collection', icon:'stack' },
   ];
   return (
-    <div style={{ position:'sticky', bottom:0, zIndex:40, padding:'6px 12px env(safe-area-inset-bottom, 16px)', background:`linear-gradient(to top, ${theme.bg} 60%, ${theme.bg}00)` }}>
-      <div style={{ height:60, borderRadius:22, padding:'0 6px', background:theme.surface, border:`1px solid ${theme.borderS}`, boxShadow:theme.elev2, display:'flex', alignItems:'center', justifyContent:'space-around' }}>
+    <div style={{ position:'sticky', bottom:0, zIndex:40, padding:'6px 8px env(safe-area-inset-bottom, 16px)', background:`linear-gradient(to top, ${theme.bg} 60%, ${theme.bg}00)` }}>
+      <div style={{ height:60, borderRadius:22, padding:'0 4px', background:theme.surface, border:`1px solid ${theme.borderS}`, boxShadow:theme.elev2, display:'flex', alignItems:'center', justifyContent:'space-around' }}>
         {items.map(it => {
           const on = tab === it.k || (it.k === 'scan' && tab.startsWith && tab.startsWith('scan'));
           if (it.center) {
             return (
-              <button key={it.k} onClick={() => setTab('scan')} style={{ width:52, height:52, borderRadius:99, border:'none', cursor:'pointer', background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 6px 20px ${accent}55, 0 1px 2px rgba(0,0,0,0.18)`, marginTop:-22 }}>
-                {React.createElement(Icon[it.icon], { size:22, color:'#fff' })}
+              <button key={it.k} onClick={() => setTab('scan')} style={{ width:50, height:50, borderRadius:99, border:'none', cursor:'pointer', background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 6px 20px ${accent}55, 0 1px 2px rgba(0,0,0,0.18)`, marginTop:-20, flexShrink:0 }}>
+                {React.createElement(Icon[it.icon], { size:20, color:'#fff' })}
               </button>
             );
           }
           return (
             <button key={it.k} onClick={() => setTab(it.k)} style={{ flex:1, height:56, border:'none', background:'transparent', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, color:on ? theme.text : theme.faint }}>
-              {React.createElement(Icon[it.icon], { size:21, color: on ? theme.text : theme.faint })}
-              <span style={{ fontFamily:"'Geist', system-ui", fontSize:10.5, fontWeight:on ? 600 : 500 }}>{it.l}</span>
+              {React.createElement(Icon[it.icon], { size:18, color: on ? theme.text : theme.faint })}
+              <span style={{ fontFamily:"'Geist', system-ui", fontSize:9.5, fontWeight:on ? 600 : 500 }}>{it.l}</span>
             </button>
           );
         })}
@@ -2037,6 +2355,10 @@ function App() {
     identity: null, frontFile: null, backFile: null, report: null,
   });
 
+  // toast notifications
+  const [toast, setToast] = React.useState(null);
+  const showToast = msg => { setToast(null); setTimeout(() => setToast(msg), 10); };
+
   // auth: persisted in localStorage
   const [authUser, setAuthUser] = React.useState(() => {
     try { return JSON.parse(localStorage.getItem('pg_auth') || 'null'); }
@@ -2064,17 +2386,24 @@ function App() {
   const openSell  = (item) => { setSellItem(item); setSellOpen(true); };
   const closeSell = () => setSellOpen(false);
 
-  const tab = screen === 'home' ? 'home' : screen === 'collection' ? 'collection' : 'scan';
+  const tab = screen === 'home' ? 'home'
+    : screen === 'collection' || screen === 'collection-item' ? 'collection'
+    : screen === 'sets' || screen === 'set-detail' ? 'sets'
+    : screen === 'dex' ? 'dex'
+    : 'scan';
   const setTab = k => {
     if (k === 'home')            goTo('home');
     else if (k === 'collection') goTo('collection');
+    else if (k === 'sets')       goTo('sets');
+    else if (k === 'dex')        goTo('dex');
     else                         goTo('scan-upload', { mode:'upload' });
   };
 
   const back = () => {
-    if (screen === 'scan-match')        goTo('scan-upload');
-    else if (screen === 'scan-report')  goTo('home');
+    if (screen === 'scan-match')           goTo('scan-upload');
+    else if (screen === 'scan-report')     goTo('home');
     else if (screen === 'collection-item') goTo('collection');
+    else if (screen === 'set-detail')      goTo('sets');
     else goTo('home');
   };
 
@@ -2136,6 +2465,13 @@ function App() {
     const updated = [...collection, newItem];
     saveCollection(updated);
 
+    // Toast when reaching 3+ cards from same set
+    const newSetName = report?.identity?.set_name;
+    if (newSetName) {
+      const sameSet = collection.filter(i => i.report?.identity?.set_name === newSetName);
+      if (sameSet.length >= 2) showToast(`${sameSet.length + 1} cartes de ${newSetName} !`);
+    }
+
     if (authUser) {
       try {
         const r = await apiFetch('/api/collection', {
@@ -2180,6 +2516,12 @@ function App() {
     content = <Collection theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} onRemove={handleRemove} tutorialActive={demoMode}/>;
   } else if (screen === 'collection-item') {
     content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell}/>;
+  } else if (screen === 'sets') {
+    content = <SetsPage theme={theme} accent={accent} collection={activeCollection} goTo={goTo}/>;
+  } else if (screen === 'set-detail') {
+    content = <SetDetailPage theme={theme} accent={accent} collection={activeCollection} setName={screenArgs.setName} setCode={screenArgs.setCode} goTo={goTo} back={back}/>;
+  } else if (screen === 'dex') {
+    content = <PokedexPage theme={theme} accent={accent} collection={activeCollection} goTo={goTo}/>;
   }
 
   return (
@@ -2193,6 +2535,7 @@ function App() {
       {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
       {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)} onReplayTutorial={replayTutorial}/>}
       {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
+      {toast        && <Toast message={toast} onDone={() => setToast(null)}/>}
       {tutorialActive && (
         <TutorialOverlay
           step={tutorialStep}
