@@ -224,7 +224,7 @@ const DEMO_COLLECTION = [
   {
     id: 'sandbox-6', is_sandbox: true, addedAt: '06 juin',
     report: {
-      identity: { name: 'Rayquaza ex', number: '102/107', language: 'FR', set_name: 'EX Deoxys', rarity: 'Rare EX', image: 'https://assets.tcgdex.net/fr/ex/exdeoxys/102' },
+      identity: { name: 'Rayquaza ex', number: '102/107', language: 'FR', set_name: 'EX Deoxys', rarity: 'Rare EX', image: 'https://assets.tcgdex.net/fr/ex/ex8/102' },
       condition: { overall_score: 9.1, centering: 9.5, corners: 9.0, edges: 9.0, surface: 9.0, confidence: 0.93 },
       pricing: { raw_price: 35, language_specific: true },
       valuation: { estimated_value: 31, value_range_low: 27, value_range_high: 35, confidence_score: 0.93 },
@@ -320,17 +320,30 @@ function CardArt({ card, w = 100, radius = 0.06 }) {
   );
 }
 
-/* ── TCGdex Card Image (with CardArt fallback) ────────────────────────── */
+/* ── TCGdex Card Image (with lang-fallback then CardArt fallback) ──────── */
 function CardImg({ imageUrl, card, w = 100, radius = 0.06 }) {
   const h = Math.round(w * 7 / 5);
   const r = w * radius;
-  const [err, setErr] = React.useState(false);
-  if (imageUrl && !err) {
+  // stage 0 = try original URL, stage 1 = try EN fallback, stage 2 = placeholder
+  const [stage, setStage] = React.useState(0);
+
+  const enFallback = React.useMemo(() => {
+    if (!imageUrl) return null;
+    // Replace non-EN locale prefix with EN so FR/JP cards show EN art when locale image is missing
+    return imageUrl.replace(/assets\.tcgdex\.net\/(fr|ja|de|es|it|pt|ko|zh-tw|zh-cn)\//, 'assets.tcgdex.net/en/');
+  }, [imageUrl]);
+
+  if (imageUrl && stage < 2) {
+    const src = (stage === 0 ? imageUrl : enFallback) + '/high.webp';
     return (
       <img
-        src={imageUrl + '/high.webp'}
+        src={src}
         width={w} height={h}
-        onError={() => setErr(true)}
+        onError={() => setStage(s => {
+          // if stage 0 failed and there's a different EN URL to try, go to stage 1; else skip to 2
+          if (s === 0 && enFallback && enFallback !== imageUrl) return 1;
+          return 2;
+        })}
         style={{ display:'block', width: w, height: h, objectFit:'cover', borderRadius: r }}
       />
     );
