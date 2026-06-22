@@ -242,6 +242,18 @@ async def search_cards(body: SearchRequest):
             if en_cards:
                 existing_ids = {c.get("id") for c in candidates}
                 new_en = [c for c in en_cards if c.get("id") not in existing_ids]
+                # For JP vintage cards, sort vintage sets first so they survive the [:12] cap.
+                # Without this, modern SV2a/XY cards dominate the first 12 results and
+                # base1/jungle/etc. Blastoise cards never make it into candidates.
+                _VINTAGE_SET_IDS = {
+                    "base1","jungle","fossil","gym1","gym2","base2","neo1","neo2","neo3","neo4"
+                }
+                jp_is_old = body.number and "/" not in body.number and body.number.lstrip("0").isdigit()
+                if jp_is_old:
+                    new_en = (
+                        [c for c in new_en if c.get("id","").split("-")[0] in _VINTAGE_SET_IDS] +
+                        [c for c in new_en if c.get("id","").split("-")[0] not in _VINTAGE_SET_IDS]
+                    )
                 # Try to fetch JA version of each EN card (TCGdex shares card IDs
                 # across languages for cards that exist in both). Fall back to EN stub.
                 # For old JP format numbers (e.g. "009"), strip leading zeros to get

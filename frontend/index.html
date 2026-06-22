@@ -959,10 +959,10 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
         // for manual selection. Falls back to normal selection on any ambiguity.
         const VINTAGE = new Set(['base1','jungle','fossil','gym1','gym2','base2','neo1','neo2','neo3','neo4']);
         const isJpVintage = (identity?.language || '').toUpperCase() === 'JP'
-          && numToUse && !numToUse.includes('/');
-        if (isJpVintage && match_id) {
-          const vintageCands = sorted.filter(c => VINTAGE.has((c.id || '').split('-')[0]));
-          if (vintageCands.length === 1 && vintageCands[0].id === match_id) {
+          && numToUse && !numToUse.includes('/') && /^\d+$/.test(numToUse.replace(/^0+/,'') || '0');
+        // Auto-skip when auto_match selected a card from a known vintage set.
+        // We trust the vintage-priority scoring in auto_match to pick the right set (base1 > base2 etc.)
+        if (isJpVintage && match_id && VINTAGE.has((match_id.split('-')[0]))) {
             setConfirming(true);
             try {
               const frontB64 = await compressImage(frontFile);
