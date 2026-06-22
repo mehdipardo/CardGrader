@@ -4,11 +4,13 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import base64
+import hashlib
+import secrets
+
 import jwt
 from fastapi import Header, HTTPException
-from passlib.context import CryptContext
 
-_pwd_ctx  = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _ALGO     = "HS256"
 _EXP_DAYS = 30
 
@@ -21,11 +23,19 @@ def _jwt_secret() -> str:
 
 
 def hash_password(pw: str) -> str:
-    return _pwd_ctx.hash(pw)
+    salt = secrets.token_bytes(16)
+    dk   = hashlib.scrypt(pw.encode(), salt=salt, n=2**14, r=8, p=1)
+    return base64.b64encode(salt + dk).decode()
 
 
 def verify_password(pw: str, hashed: str) -> bool:
-    return _pwd_ctx.verify(pw, hashed)
+    try:
+        data = base64.b64decode(hashed)
+        salt, stored = data[:16], data[16:]
+        dk = hashlib.scrypt(pw.encode(), salt=salt, n=2**14, r=8, p=1)
+        return secrets.compare_digest(dk, stored)
+    except Exception:
+        return False
 
 
 def create_token(user_id: str, pseudo: str) -> str:

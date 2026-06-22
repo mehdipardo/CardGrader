@@ -7,6 +7,5 @@ fastapi
 uvicorn[standard]
 python-multipart
 # supabase-py retiré — client PostgREST natif httpx dans src/auth.py
-passlib[bcrypt]
-bcrypt>=3.0.0,<4.0.0
+# hashlib.scrypt natif Python — passlib/bcrypt supprimés (conflits serverless)
 PyJWT
