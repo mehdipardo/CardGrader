@@ -969,7 +969,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
               const backB64  = backFile ? await compressImage(backFile) : null;
               const report = await apiFetch('/api/report', {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ card_id: match_id, lang: searchLangRef.current, front_image: frontB64, back_image: backB64 }),
+                body: JSON.stringify({ card_id: match_id, lang: searchLangRef.current, front_image: frontB64, back_image: backB64, scan_identity: { name: identity?.name, number: numToUse, language: identity?.language, set_name: identity?.set_name } }),
               });
               onConfirm({ report, selectedId: match_id });
             } catch (e) {
@@ -1000,7 +1000,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
       const report = await apiFetch('/api/report', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ card_id:selected, lang: searchLangRef.current, front_image:frontB64, back_image:backB64 }),
+        body: JSON.stringify({ card_id:selected, lang: searchLangRef.current, front_image:frontB64, back_image:backB64, scan_identity: { name: identity?.name, number: cardNumber, language: identity?.language, set_name: identity?.set_name } }),
       });
       onConfirm({ report, selectedId:selected });
     } catch (e) {
@@ -1264,6 +1264,11 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell, openSh
             </div>
           </div>
         </div>
+        {id.equiv_lang && (
+          <div style={{ marginTop:8, padding:'8px 11px', borderRadius:10, background:'rgba(251,191,36,0.08)', border:'1px solid rgba(251,191,36,0.2)', fontSize:10.5, color:theme.muted, lineHeight:1.45 }}>
+            ℹ️ Image et prix de référence basés sur l'édition <b style={{ color:theme.text }}>{LANG_FLAGS[id.equiv_lang] || ''} {id.equiv_lang}</b> équivalente (même illustration) — les sets vintage {LANG_FLAGS[id.language] || ''} {id.language} ne sont pas référencés.
+          </div>
+        )}
       </div>
 
       {/* GRADING */}

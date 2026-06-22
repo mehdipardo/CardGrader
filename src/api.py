@@ -521,6 +521,11 @@ class ReportRequest(BaseModel):
     lang:        str = "fr"
     front_image: str          # base64
     back_image:  Optional[str] = None  # base64
+    # Original vision identity from the scan. When the matched TCGdex card is in a
+    # different language than the scanned card (e.g. JP vintage card matched to its
+    # EN equivalent because TCGdex lacks usable JP vintage data), we preserve the
+    # scanned identity for display so the user still sees "カメックス · 009 · JP".
+    scan_identity: Optional[dict] = None
 
 
 @app.post("/api/report")
@@ -593,15 +598,38 @@ async def full_report(body: ReportRequest):
     finally:
         _unlink(front_path, back_path)
 
+    # Build the DISPLAYED identity. By default it mirrors the matched TCGdex card.
+    # But when the scan was in a different language than the matched card (cross-language
+    # fallback, e.g. JP card → EN equivalent), preserve the scanned name/number/language
+    # so the report stays faithful to the physical card the user actually holds.
+    # The image and pricing still come from the matched (EN) card.
+    scan = body.scan_identity or {}
+    scan_lang = (scan.get("language") or "").upper()
+    cross_lang = bool(scan_lang and scan_lang != lang_used.upper())
+
+    disp_name     = identity.name
+    disp_number   = tcgdex_card.get("localId", "")
+    disp_language = identity.language
+    disp_set_name = identity.set_name
+    equiv_lang    = None  # language of the card whose data (image/price) we used
+
+    if cross_lang:
+        disp_name     = scan.get("name")     or disp_name
+        disp_number   = scan.get("number")   or disp_number
+        disp_language = scan_lang
+        disp_set_name = scan.get("set_name") or disp_set_name
+        equiv_lang    = lang_used.upper()  # signal to frontend that data is from this lang
+
     return {
         "identity": {
-            "name":     identity.name,
-            "number":   tcgdex_card.get("localId", ""),
-            "language": identity.language,
-            "set_name": identity.set_name,
+            "name":     disp_name,
+            "number":   disp_number,
+            "language": disp_language,
+            "set_name": disp_set_name,
             "set_code": identity.set_code,
             "rarity":   identity.rarity,
             "image":    tcgdex_card.get("image", ""),
+            "equiv_lang": equiv_lang,
         },
         "condition": {
             "centering":     condition.centering,
