@@ -1826,8 +1826,8 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
     { title: 'Chaque carte évaluée par l\'IA', text: 'Score d\'état, prix CardMarket, langue, rareté et édition — identifiés automatiquement depuis tes photos.', target: 'recent-card-0' },
     { title: 'Grade précis, critère par critère', text: 'Centrage, coins, bords et surface sont analysés séparément. Le score sur 10 reflète l\'état réel de la carte.', target: 'grading-section' },
     { title: 'Scanne en 30 secondes', text: 'Photo recto + verso. L\'IA identifie la carte, son édition et calcule son état — même pour les cartes japonaises ou vintage.', target: 'scan-hero' },
-    { title: 'Browse par set', text: 'Toutes tes cartes regroupées par édition avec valeur totale par set — idéal pour suivre une collection thématique.', target: null, isPageSets: true },
-    { title: 'Pokédex de ta collection', text: 'Visualise quels Pokémon tu possèdes, génération par génération. Parfait pour tracker ta complétion.', target: null, isPageDex: true },
+    { title: 'Browse par set', text: 'Toutes tes cartes regroupées par édition avec valeur totale par set — idéal pour suivre une collection thématique.', target: 'collection-tabs', isPageSets: true },
+    { title: 'Pokédex de ta collection', text: 'Visualise quels Pokémon tu possèdes, génération par génération. Parfait pour tracker ta complétion.', target: 'collection-tabs', isPageDex: true },
     { title: 'Cartes multilingues & JP vintage', text: 'FR, EN, JP, DE, ES… la langue est détectée automatiquement. Pour les sets JP vintage introuvables, l\'équivalent EN est utilisé avec une note.', target: null, hasMockJP: true },
     { title: 'Vends en un clic', text: 'L\'IA rédige une annonce adaptée à Vinted, eBay ou CardMarket — titre, description, prix et hashtags en 10 secondes.', target: 'sell-cta-btn' },
     { title: 'Prêt à commencer ?', text: 'Explore le sandbox avec de vraies cartes d\'exemple, ou crée un compte pour sauvegarder ta collection.', target: null, isFinal: true },
@@ -1870,7 +1870,11 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
 
   const bubbleW = Math.min(320, window.innerWidth - 32);
   let bubbleStyle = {};
-  if (spotRect) {
+  const isPageStep = current.isPageSets || current.isPageDex;
+  if (isPageStep) {
+    // Pin bubble above bottom nav so tab spotlight AND page content are both visible
+    bubbleStyle = { position: 'fixed', bottom: 104, left: '50%', transform: 'translateX(-50%)', width: bubbleW };
+  } else if (spotRect) {
     const bLeft = Math.max(16, Math.min(window.innerWidth - bubbleW - 16, spotL + spotW / 2 - bubbleW / 2));
     const spaceBelow = window.innerHeight - (spotT + spotH) - 16;
     if (spaceBelow >= 220) {
@@ -1889,13 +1893,13 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
     <>
       {/* Four panels framing the spotlight (or single full overlay for modal) */}
       {isModal || !spotRect ? (
-        <div style={{ position:'fixed', inset:0, zIndex:990, background: (current.isPageSets || current.isPageDex) ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.72)', animation:'pgFade .25s ease' }}/>
+        <div style={{ position:'fixed', inset:0, zIndex:990, background:'rgba(0,0,0,0.72)', animation:'pgFade .25s ease' }}/>
       ) : (
         <>
-          <div style={{ position:'fixed', top:0, left:0, width:'100%', height: spotT, zIndex:990, background:'rgba(0,0,0,0.72)' }}/>
-          <div style={{ position:'fixed', top: spotT + spotH, left:0, width:'100%', height: Math.max(0, iH - spotT - spotH), zIndex:990, background:'rgba(0,0,0,0.72)' }}/>
-          <div style={{ position:'fixed', top: spotT, left:0, width: Math.max(0, spotL), height: spotH, zIndex:990, background:'rgba(0,0,0,0.72)' }}/>
-          <div style={{ position:'fixed', top: spotT, left: spotL + spotW, width: Math.max(0, iW - spotL - spotW), height: spotH, zIndex:990, background:'rgba(0,0,0,0.72)' }}/>
+          <div style={{ position:'fixed', top:0, left:0, width:'100%', height: spotT, zIndex:990, background: isPageStep ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)' }}/>
+          <div style={{ position:'fixed', top: spotT + spotH, left:0, width:'100%', height: Math.max(0, iH - spotT - spotH), zIndex:990, background: isPageStep ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)' }}/>
+          <div style={{ position:'fixed', top: spotT, left:0, width: Math.max(0, spotL), height: spotH, zIndex:990, background: isPageStep ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)' }}/>
+          <div style={{ position:'fixed', top: spotT, left: spotL + spotW, width: Math.max(0, iW - spotL - spotW), height: spotH, zIndex:990, background: isPageStep ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)' }}/>
           {/* Spotlight ring */}
           <div style={{ position:'fixed', top: spotT, left: spotL, width: spotW, height: spotH, zIndex:991, borderRadius:16, border:`2px solid ${accent}88`, pointerEvents:'none', boxShadow:`0 0 0 1px ${accent}44, 0 8px 32px rgba(0,0,0,0.5)`, transition:'top .32s cubic-bezier(.4,0,.2,1), left .32s cubic-bezier(.4,0,.2,1), width .32s, height .32s' }}/>
         </>
@@ -2763,7 +2767,7 @@ function CollectionHub({ theme, accent, collection, goTo, openSell, onRemove, tu
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
       {showControl && (
         <div style={{ padding:'10px 16px 0', flexShrink:0 }}>
-          <div style={{ display:'flex', gap:4, padding:4, background:theme.surface, borderRadius:14, border:`1px solid ${theme.borderS}`, boxShadow:theme.elev1 }}>
+          <div data-tutorial="collection-tabs" style={{ display:'flex', gap:4, padding:4, background:theme.surface, borderRadius:14, border:`1px solid ${theme.borderS}`, boxShadow:theme.elev1 }}>
             {[
               { k:'cartes', l:'Cartes',  icon:'stack' },
               { k:'sets',   l:'Sets',    icon:'layers' },
