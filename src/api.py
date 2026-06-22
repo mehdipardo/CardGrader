@@ -244,9 +244,18 @@ async def search_cards(body: SearchRequest):
                 new_en = [c for c in en_cards if c.get("id") not in existing_ids]
                 # Try to fetch JA version of each EN card (TCGdex shares card IDs
                 # across languages for cards that exist in both). Fall back to EN stub.
+                # For old JP format numbers (e.g. "009"), strip leading zeros to get
+                # the JP localId ("9"). Original JP sets use JP numbering as localId,
+                # which differs from EN localId (JP Blastoise=9, EN Blastoise=2).
+                jp_num = body.number.lstrip("0") if body.number and "/" not in body.number else None
+
                 ja_from_en: list = []
                 for en_card in new_en[:12]:  # cap to avoid excessive requests
                     cid = en_card.get("id", "")
+                    set_id = cid.split("-")[0] if "-" in cid else ""
+                    ja_found = False
+
+                    # Strategy 1: try same card ID (works for modern sets that share IDs)
                     try:
                         r = httpx.get(
                             f"https://api.tcgdex.net/v2/ja/cards/{cid}", timeout=5.0
@@ -259,10 +268,33 @@ async def search_cards(body: SearchRequest):
                                 "name":    ja_data.get("name")    or en_card.get("name"),
                                 "image":   ja_data.get("image")   or en_card.get("image"),
                             })
-                        else:
-                            ja_from_en.append(en_card)
+                            ja_found = True
                     except Exception:
+                        pass
+
+                    # Strategy 2 (vintage JP sets only): try set_id + JP number as localId
+                    # e.g. base1-9 for カメックス 009 instead of base1-2 (EN number)
+                    if not ja_found and jp_num and set_id:
+                        jp_card_id = f"{set_id}-{jp_num}"
+                        try:
+                            r2 = httpx.get(
+                                f"https://api.tcgdex.net/v2/ja/cards/{jp_card_id}", timeout=5.0
+                            )
+                            if r2.status_code == 200:
+                                ja_data = r2.json()
+                                ja_from_en.append({
+                                    "id":      jp_card_id,
+                                    "localId": ja_data.get("localId") or jp_num,
+                                    "name":    ja_data.get("name")    or en_card.get("name"),
+                                    "image":   ja_data.get("image")   or en_card.get("image"),
+                                })
+                                ja_found = True
+                        except Exception:
+                            pass
+
+                    if not ja_found:
                         ja_from_en.append(en_card)
+
                 candidates = candidates + ja_from_en
                 if not active_lang or active_lang == "ja":
                     active_lang = "en"  # use EN for set name enrichment
@@ -377,11 +409,18 @@ async def auto_match(body: AutoMatchRequest):
 
     for stub in scored_candidates:
         cid = stub.get("id")
-        try:
-            resp = httpx.get(f"https://api.tcgdex.net/v2/{lang}/cards/{cid}", timeout=10.0)
-            resp.raise_for_status()
-            full = resp.json()
-        except Exception:
+        full = None
+        # For JP searches, try JA first (vintage JP cards may only exist in JA endpoint)
+        langs_to_try = (["ja", lang] if lang == "ja" or body.lang == "ja" else [lang])
+        for try_lang in langs_to_try:
+            try:
+                resp = httpx.get(f"https://api.tcgdex.net/v2/{try_lang}/cards/{cid}", timeout=10.0)
+                if resp.status_code == 200:
+                    full = resp.json()
+                    break
+            except Exception:
+                continue
+        if not full:
             continue
 
         card_count   = (full.get("set") or {}).get("cardCount") or {}
