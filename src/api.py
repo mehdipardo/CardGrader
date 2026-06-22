@@ -96,6 +96,62 @@ TCGDEX_LANG: dict[str, str] = {
     "IT": "it", "ES": "es", "KO": "ko", "PT": "pt",
 }
 
+# Katakana → English name map for Gen 1 (original Japanese cards have
+# different numbering than EN sets, so we must search EN by translated name
+# to surface Base Set / early set cards that TCGdex indexes under EN IDs).
+JP_TO_EN: dict[str, str] = {
+    "フシギダネ": "Bulbasaur",   "フシギソウ": "Ivysaur",      "フシギバナ": "Venusaur",
+    "ヒトカゲ":  "Charmander",   "リザード":   "Charmeleon",    "リザードン": "Charizard",
+    "ゼニガメ":  "Squirtle",     "カメール":   "Wartortle",     "カメックス": "Blastoise",
+    "キャタピー": "Caterpie",    "トランセル": "Metapod",       "バタフリー": "Butterfree",
+    "ビードル":  "Weedle",       "コクーン":   "Kakuna",        "スピアー":   "Beedrill",
+    "ポッポ":    "Pidgey",       "ピジョン":   "Pidgeotto",     "ピジョット": "Pidgeot",
+    "コラッタ":  "Rattata",      "ラッタ":     "Raticate",      "オニスズメ": "Spearow",
+    "オニドリル": "Fearow",      "アーボ":     "Ekans",         "アーボック": "Arbok",
+    "ピカチュウ": "Pikachu",     "ライチュウ": "Raichu",        "サンド":     "Sandshrew",
+    "サンドパン": "Sandslash",   "ニドリーナ": "Nidorina",      "ニドクイン": "Nidoqueen",
+    "ニドリーノ": "Nidorino",    "ニドキング": "Nidoking",      "ピッピ":     "Clefairy",
+    "ピクシー":  "Clefable",     "ロコン":     "Vulpix",        "キュウコン": "Ninetales",
+    "プリン":    "Jigglypuff",   "プクリン":   "Wigglytuff",    "ズバット":   "Zubat",
+    "ゴルバット": "Golbat",      "ナゾノクサ": "Oddish",        "クサイハナ": "Gloom",
+    "ラフレシア": "Vileplume",   "パラス":     "Paras",         "パラセクト": "Parasect",
+    "コンパン":  "Venonat",      "モルフォン": "Venomoth",      "ディグダ":   "Diglett",
+    "ダグトリオ": "Dugtrio",     "ニャース":   "Meowth",        "ペルシアン": "Persian",
+    "コダック":  "Psyduck",      "ゴルダック": "Golduck",       "マンキー":   "Mankey",
+    "オコリザル": "Primeape",    "ガーディ":   "Growlithe",     "ウインディ": "Arcanine",
+    "ニョロモ":  "Poliwag",      "ニョロゾ":   "Poliwhirl",     "ニョロボン": "Poliwrath",
+    "ケーシィ":  "Abra",         "ユンゲラー": "Kadabra",       "フーディン": "Alakazam",
+    "マッチョ":  "Machop",       "ゴーリキー": "Machoke",       "カイリキー": "Machamp",
+    "マダツボミ": "Bellsprout",  "ウツドン":   "Weepinbell",    "ウツボット": "Victreebel",
+    "メノクラゲ": "Tentacool",   "ドククラゲ": "Tentacruel",    "イシツブテ": "Geodude",
+    "ゴローン":  "Graveler",     "ゴローニャ": "Golem",         "ポニータ":   "Ponyta",
+    "ギャロップ": "Rapidash",    "ヤドン":     "Slowpoke",      "ヤドラン":   "Slowbro",
+    "コイル":    "Magnemite",    "レアコイル": "Magneton",      "カモネギ":   "Farfetch'd",
+    "ドードー":  "Doduo",        "ドードリオ": "Dodrio",        "パウワウ":   "Seel",
+    "ジュゴン":  "Dewgong",      "ベトベター": "Grimer",        "ベトベトン": "Muk",
+    "シェルダー": "Shellder",    "パルシェン": "Cloyster",      "ゴース":     "Gastly",
+    "ゴースト":  "Haunter",      "ゲンガー":   "Gengar",        "イワーク":   "Onix",
+    "スリープ":  "Drowzee",      "スリーパー": "Hypno",         "クラブ":     "Krabby",
+    "キングラー": "Kingler",     "ビリリダマ": "Voltorb",       "マルマイン": "Electrode",
+    "タマタマ":  "Exeggcute",    "ナッシー":   "Exeggutor",     "カラカラ":   "Cubone",
+    "ガラガラ":  "Marowak",      "サワムラー": "Hitmonlee",     "エビワラー": "Hitmonchan",
+    "ベロリンガ": "Lickitung",   "ドガース":   "Koffing",       "マタドガス": "Weezing",
+    "サイホーン": "Rhyhorn",     "サイドン":   "Rhydon",        "ラッキー":   "Chansey",
+    "モンジャラ": "Tangela",     "ガルーラ":   "Kangaskhan",    "タッツー":   "Horsea",
+    "シードラ":  "Seadra",       "トサキント": "Goldeen",       "アズマオウ": "Seaking",
+    "ヒトデマン": "Staryu",      "スターミー": "Starmie",       "バリヤード": "Mr. Mime",
+    "ストライク": "Scyther",     "ルージュラ": "Jynx",          "エレブー":   "Electabuzz",
+    "ブーバー":  "Magmar",       "カイロス":   "Pinsir",        "ケンタロス": "Tauros",
+    "コイキング": "Magikarp",    "ギャラドス": "Gyarados",      "ラプラス":   "Lapras",
+    "メタモン":  "Ditto",        "イーブイ":   "Eevee",         "シャワーズ": "Vaporeon",
+    "サンダース": "Jolteon",     "ブースター": "Flareon",       "ポリゴン":   "Porygon",
+    "オムナイト": "Omanyte",     "オムスター": "Omastar",       "カブト":     "Kabuto",
+    "カブトプス": "Kabutops",    "プテラ":     "Aerodactyl",    "カビゴン":   "Snorlax",
+    "フリーザー": "Articuno",    "サンダー":   "Zapdos",        "ファイヤー": "Moltres",
+    "ミニリュウ": "Dratini",     "ハクリュー": "Dragonair",     "カイリュー": "Dragonite",
+    "ミュウツー": "Mewtwo",      "ミュウ":     "Mew",
+}
+
 @app.post("/api/search")
 async def search_cards(body: SearchRequest):
     """Search TCGdex by Pokémon name; return list of card stubs with images."""
@@ -172,6 +228,44 @@ async def search_cards(body: SearchRequest):
 
             candidates = candidates + new_cards
             break
+
+    # For JP cards: the original Japanese sets (Base Set, Jungle, etc.) use different
+    # card numbering from EN sets (JP Blastoise = 009, EN Blastoise = 2/102).
+    # TCGdex primarily indexes these cards under EN IDs. So we also search EN using
+    # the translated English name, then try to fetch the JA version of each result.
+    # This makes vintage JP Base Set cards discoverable alongside modern JA cards.
+    if primary_lang == "ja":
+        from src.tools.card_lookup import _number_matches as _nm
+        en_name = JP_TO_EN.get(body.name)
+        if en_name:
+            en_cards = _fetch_cards("en", en_name)
+            if en_cards:
+                existing_ids = {c.get("id") for c in candidates}
+                new_en = [c for c in en_cards if c.get("id") not in existing_ids]
+                # Try to fetch JA version of each EN card (TCGdex shares card IDs
+                # across languages for cards that exist in both). Fall back to EN stub.
+                ja_from_en: list = []
+                for en_card in new_en[:12]:  # cap to avoid excessive requests
+                    cid = en_card.get("id", "")
+                    try:
+                        r = httpx.get(
+                            f"https://api.tcgdex.net/v2/ja/cards/{cid}", timeout=5.0
+                        )
+                        if r.status_code == 200:
+                            ja_data = r.json()
+                            ja_from_en.append({
+                                "id":      cid,
+                                "localId": ja_data.get("localId") or en_card.get("localId"),
+                                "name":    ja_data.get("name")    or en_card.get("name"),
+                                "image":   ja_data.get("image")   or en_card.get("image"),
+                            })
+                        else:
+                            ja_from_en.append(en_card)
+                    except Exception:
+                        ja_from_en.append(en_card)
+                candidates = candidates + ja_from_en
+                if not active_lang or active_lang == "ja":
+                    active_lang = "en"  # use EN for set name enrichment
 
     # If still empty, strip common trainer-type prefixes Vision sometimes prepends
     # (e.g. "Dresseur - Détermination d'Ondine" → "Détermination d'Ondine")
@@ -259,17 +353,29 @@ async def auto_match(body: AutoMatchRequest):
         if _number_matches(number, str(c.get("localId") or c.get("id", "")))
     ]
 
-    if not local_matches:
+    # For old Japanese cards the number format is "009" (zero-padded, no /total)
+    # and the EN localId is completely different (JP 009 = EN 2 for Base Blastoise).
+    # When no local match is found and the number looks like a vintage JP number,
+    # fall back to set-name scoring across all candidates.
+    jp_old_number = (
+        lang == "ja"
+        and "/" not in number
+        and number.lstrip("0").isdigit()
+    )
+
+    if not local_matches and not jp_old_number:
         return {"match_id": None}
 
-    if len(local_matches) == 1:
-        return {"match_id": local_matches[0]["id"]}
+    scored_candidates = local_matches if local_matches else candidates
+
+    if len(scored_candidates) == 1:
+        return {"match_id": scored_candidates[0]["id"]}
 
     # Multiple matches — fetch full cards to disambiguate
     perfect = acceptable = set_match = None
     best_set_score = 0
 
-    for stub in local_matches:
+    for stub in scored_candidates:
         cid = stub.get("id")
         try:
             resp = httpx.get(f"https://api.tcgdex.net/v2/{lang}/cards/{cid}", timeout=10.0)
@@ -282,7 +388,7 @@ async def auto_match(body: AutoMatchRequest):
         card_set_id  = (full.get("set") or {}).get("id", "")
         card_set_name = (full.get("set") or {}).get("name", "")
 
-        # Priority 1: set total matches perfectly
+        # Priority 1: set total matches perfectly (not useful for JP old-format)
         if total_in_set is not None:
             if card_count.get("official") == total_in_set:
                 return {"match_id": cid}
@@ -297,11 +403,18 @@ async def auto_match(body: AutoMatchRequest):
                 best_set_score = score
                 set_match = cid
 
+        # Priority 3 (JP old-format only): prefer earliest known vintage sets
+        # (base1, jungle, fossil, gym1/2) as they share the 3-digit number format
+        if jp_old_number and card_set_id in ("base1", "jungle", "fossil", "gym1", "gym2", "base2", "neo1", "neo2", "neo3", "neo4"):
+            if best_set_score < 4:  # only override if no strong set-name match
+                best_set_score = 4
+                set_match = cid
+
     if acceptable:
         return {"match_id": acceptable}
     if set_match and best_set_score > 0:
         return {"match_id": set_match}
-    return {"match_id": local_matches[0]["id"]}
+    return {"match_id": scored_candidates[0]["id"]}
 
 
 # ── GET /api/card/{card_id} ────────────────────────────────────────────────
