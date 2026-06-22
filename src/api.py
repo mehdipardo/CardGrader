@@ -580,11 +580,14 @@ async def full_report(body: ReportRequest):
             back_image_path=back_path,
         )
 
-        # Price
-        rapidapi_key = os.environ.get("RAPIDAPI_KEY")
-        pricing = PricingTool(rapidapi_key=rapidapi_key).fetch_prices(
+        # Price — Layer 3 (JustTCG) fires for JP cards when the key is present
+        rapidapi_key  = os.environ.get("RAPIDAPI_KEY")
+        justtcg_key   = os.environ.get("JUSTTCG_API_KEY")
+        scan_lang     = ((body.scan_identity or {}).get("language") or "").upper() or None
+        pricing = PricingTool(rapidapi_key=rapidapi_key, justtcg_key=justtcg_key).fetch_prices(
             identity=identity,
             tcgdex_card=tcgdex_card,
+            scan_language=scan_lang,
         )
 
         # Score

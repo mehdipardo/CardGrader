@@ -1,4 +1,4 @@
-"""Two-layer pricing tool: TCGDex (always) + cardmarket-api via RapidAPI (optional)."""
+"""Two-layer pricing tool: TCGDex (always) + cardmarket-api via RapidAPI (optional) + JustTCG JP (optional)."""
 
 import sys
 from datetime import datetime
@@ -13,11 +13,22 @@ RAPIDAPI_URL = "https://pokemon-api2.p.rapidapi.com/cards"
 RAPIDAPI_HOST = "pokemon-api2.p.rapidapi.com"
 REQUEST_TIMEOUT = 10.0
 
+# Layer 3 endpoint — JustTCG Japan-specific pricing
+JUSTTCG_URL = "https://api.justtcg.com/v1/cards"
+
 # Languages that have dedicated CardMarket regional prices
 REGIONAL_LANGUAGES = {"FR", "JP", "DE", "IT", "ES"}
 
-SOURCE_TCGDEX_ONLY = "tcgdex-only"
+# Vintage JP sets where JustTCG numbering diverges from TCGdex EN numbering —
+# skip JustTCG for these to avoid matching the wrong card.
+JUSTTCG_VINTAGE_SKIP = {
+    "base1", "jungle", "fossil", "gym1", "gym2", "base2",
+    "neo1", "neo2", "neo3", "neo4",
+}
+
+SOURCE_TCGDEX_ONLY  = "tcgdex-only"
 SOURCE_TCGDEX_RAPID = "tcgdex+cardmarket-api"
+SOURCE_TCGDEX_JTCG  = "tcgdex+justtcg-jp"
 
 
 class PricingTool:
@@ -34,25 +45,34 @@ class PricingTool:
         On 429 (quota exceeded) the layer is skipped silently.
     """
 
-    def __init__(self, rapidapi_key: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        rapidapi_key: Optional[str] = None,
+        justtcg_key:  Optional[str] = None,
+    ) -> None:
         """Initialise the pricing tool.
 
         Args:
-            rapidapi_key: RapidAPI key for cardmarket-api.com. Optional —
-                the tool functions with TCGDex data alone when absent.
+            rapidapi_key: RapidAPI key for cardmarket-api.com. Optional.
+            justtcg_key:  JustTCG API key for Japan-specific pricing. Optional.
         """
         self.rapidapi_key = rapidapi_key
+        self.justtcg_key  = justtcg_key
 
     def fetch_prices(
         self,
         identity: CardIdentity,
         tcgdex_card: dict,
+        scan_language: Optional[str] = None,
     ) -> CardPricing:
-        """Fetch a complete CardPricing from TCGDex data + optional RapidAPI enrichment.
+        """Fetch a complete CardPricing from TCGDex + optional RapidAPI + optional JustTCG.
 
         Args:
-            identity: Card identity (language used for regional pricing).
+            identity: Card identity built from the matched TCGdex card.
             tcgdex_card: Full card dict returned by CardLookupTool.resolve().
+            scan_language: Original language from the vision scan. Differs from
+                identity.language when a cross-language fallback occurred (e.g.
+                JP card matched to its EN equivalent). Used to trigger JP pricing.
 
         Returns:
             A CardPricing with raw_price, optional grade tiers, and metadata.
@@ -87,6 +107,19 @@ class PricingTool:
                 grade_5  = graded.get(5)
                 grade_3  = graded.get(3)
                 source_detail = SOURCE_TCGDEX_RAPID
+
+        # ── Layer 3: JustTCG JP pricing (optional) ─────────────────────────
+        # Fires when the physical card is Japanese and we don't yet have a
+        # JP-specific price (RapidAPI either absent or returned no JP price).
+        effective_lang = (scan_language or identity.language or "").upper()
+        if self.justtcg_key and effective_lang == "JP" and not language_specific:
+            en_name = tcgdex_card.get("name") or identity.name
+            jtcg_price = self._fetch_justtcg_jp_price(en_name, tcgdex_card)
+            if jtcg_price is not None:
+                raw_price = jtcg_price
+                currency  = "USD"
+                language_specific = True
+                source_detail = SOURCE_TCGDEX_JTCG
 
         return CardPricing(
             raw_price=raw_price,
@@ -230,6 +263,72 @@ class PricingTool:
             pass
 
         return result
+
+    # ── Layer 3 helpers ────────────────────────────────────────────────────
+
+    def _fetch_justtcg_jp_price(
+        self,
+        en_name: str,
+        tcgdex_card: dict,
+    ) -> Optional[float]:
+        """Fetch the Near Mint JP market price (USD) from JustTCG for a JP card.
+
+        Searches `game=pokemon-japan` by English card name, then confirms the
+        match using the TCGdex set ID. Requires a set-level match (set_id in
+        JustTCG card ID) to avoid price cross-contamination between sets.
+        Vintage sets with diverging numbering are skipped entirely.
+
+        Args:
+            en_name:     English card name (from matched TCGdex card).
+            tcgdex_card: Full TCGdex card dict for set info and local ID.
+
+        Returns:
+            Near Mint price in USD, or None if unavailable / unconfidently matched.
+        """
+        set_info = tcgdex_card.get("set") or {}
+        set_id   = (set_info.get("id") or "").lower()
+        local_id = str(tcgdex_card.get("localId") or "")
+
+        if set_id in JUSTTCG_VINTAGE_SKIP:
+            return None
+
+        try:
+            r = httpx.get(
+                JUSTTCG_URL,
+                params={"game": "pokemon-japan", "query": en_name, "limit": 50},
+                headers={"X-API-Key": self.justtcg_key},
+                timeout=8.0,
+            )
+            r.raise_for_status()
+            cards = r.json().get("data") or []
+        except Exception:
+            return None
+
+        # Score each result: +2 for set match, +1 for local-id match.
+        # Require score >= 2 (set confirmed) to avoid wrong-set pricing.
+        best_card  = None
+        best_score = 0
+        for card in cards:
+            card_id    = (card.get("id") or "").lower()
+            jt_local   = (card.get("number") or "").split("/")[0]
+            score      = 0
+            if set_id and set_id in card_id:
+                score += 2
+            if local_id and jt_local == local_id:
+                score += 1
+            if score > best_score:
+                best_score = score
+                best_card  = card
+
+        if best_score < 2 or best_card is None:
+            return None
+
+        for variant in (best_card.get("variants") or []):
+            cond  = (variant.get("condition") or "").lower()
+            price = variant.get("price")
+            if "near mint" in cond and price:
+                return float(price)
+        return None
 
 
 if __name__ == "__main__":
