@@ -922,23 +922,27 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
   const [confirming, setConfirming] = React.useState(false);
   const [error, setError]           = React.useState(null);
   const [visibleCount, setVisible]  = React.useState(12);
+  const [cardNumber, setCardNumber] = React.useState(identity?.number || '');
+  const [editingNum, setEditingNum] = React.useState(false);
+  const numInputRef = React.useRef(null);
   const lang = TCGDEX_LANG[identity?.language?.toUpperCase()] || 'fr';
   const searchLangRef = React.useRef(lang);
 
-  const doSearch = React.useCallback(async (name) => {
+  const doSearch = React.useCallback(async (name, overrideNumber) => {
+    const numToUse = overrideNumber !== undefined ? overrideNumber : cardNumber;
     setLoading(true); setError(null); setSelected(null); setAutoId(null); setVisible(12);
     try {
       const { candidates: cands, lang: activeLang } = await apiFetch('/api/search', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ name, language: identity?.language || 'FR', number: identity?.number || '' }),
+        body: JSON.stringify({ name, language: identity?.language || 'FR', number: numToUse }),
       });
       searchLangRef.current = activeLang || lang;
       if (cands?.length) {
         const { match_id } = await apiFetch('/api/auto_match', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ candidates: cands, number: identity?.number || '', lang: searchLangRef.current, set_name: identity?.set_name || null, set_code: identity?.set_code || null }),
+          body: JSON.stringify({ candidates: cands, number: numToUse, lang: searchLangRef.current, set_name: identity?.set_name || null, set_code: identity?.set_code || null }),
         });
         // AI suggestion first, rest in original order
         const sorted = match_id
@@ -955,9 +959,9 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
     } finally {
       setLoading(false);
     }
-  }, [identity, lang]);
+  }, [identity, lang, cardNumber]);
 
-  React.useEffect(() => { doSearch(identity?.name || ''); }, []);
+  React.useEffect(() => { doSearch(identity?.name || '', identity?.number || ''); }, []);
 
   const handleConfirm = async () => {
     if (!selected) return;
@@ -994,7 +998,48 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
             <Chip theme={theme} tone="accent" accentColor={accent}>
               <Icon.spark size={11} color={accent}/> Identifié : <b style={{ fontWeight:600, marginLeft:3 }}>{identity.name}</b>
             </Chip>
-            {identity.number && <Chip theme={theme}>{identity.number}</Chip>}
+            {/* Editable card number chip */}
+            {editingNum ? (
+              <form onSubmit={e => {
+                e.preventDefault();
+                setEditingNum(false);
+                doSearch(search, cardNumber);
+              }} style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                <input
+                  ref={numInputRef}
+                  value={cardNumber}
+                  onChange={e => setCardNumber(e.target.value)}
+                  onBlur={() => { setEditingNum(false); doSearch(search, cardNumber); }}
+                  placeholder="ex: 4/102"
+                  autoFocus
+                  style={{
+                    width: Math.max(60, cardNumber.length * 9 + 20),
+                    height: 24, padding:'0 8px', borderRadius:99,
+                    border:`1.5px solid ${accent}`, background:theme.surface,
+                    color:theme.text, fontSize:12, fontFamily:"'Geist Mono', monospace",
+                    outline:'none',
+                  }}
+                />
+                <button type="submit" style={{ height:24, padding:'0 8px', borderRadius:99, border:'none', background:accent, color:'#000', fontSize:11, fontWeight:700, cursor:'pointer' }}>✓</button>
+              </form>
+            ) : (
+              <button
+                onClick={() => { setEditingNum(true); setTimeout(() => numInputRef.current?.focus(), 10); }}
+                title="Corriger le numéro de carte"
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:4,
+                  height:24, padding:'0 8px', borderRadius:99,
+                  border:`1px solid ${theme.border}`, background:theme.surface,
+                  color:theme.text, fontSize:12, fontFamily:"'Geist Mono', monospace",
+                  cursor:'pointer',
+                }}
+              >
+                {cardNumber || '?/?'}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ opacity:0.5 }}>
+                  <path d="M4 20h4l10.5-10.5a2.12 2.12 0 00-3-3L5 17v3z" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
             {identity.language && <Chip theme={theme}>{LANG_FLAGS[identity.language] || identity.language} {identity.language}</Chip>}
           </div>
         )}
