@@ -948,9 +948,37 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
         const sorted = match_id
           ? [cands.find(c => c.id === match_id), ...cands.filter(c => c.id !== match_id)].filter(Boolean)
           : cands;
+
+        // Always update state so the card list is visible if we end up showing it
         setAutoId(match_id);
         setSelected(match_id || sorted[0]?.id);
         setCandidates(sorted);
+
+        // Auto-skip for JP vintage: exactly ONE card from a known vintage set among
+        // all candidates, and it is the auto-matched card → 100% confident, no need
+        // for manual selection. Falls back to normal selection on any ambiguity.
+        const VINTAGE = new Set(['base1','jungle','fossil','gym1','gym2','base2','neo1','neo2','neo3','neo4']);
+        const isJpVintage = (identity?.language || '').toUpperCase() === 'JP'
+          && numToUse && !numToUse.includes('/');
+        if (isJpVintage && match_id) {
+          const vintageCands = sorted.filter(c => VINTAGE.has((c.id || '').split('-')[0]));
+          if (vintageCands.length === 1 && vintageCands[0].id === match_id) {
+            setConfirming(true);
+            try {
+              const frontB64 = await compressImage(frontFile);
+              const backB64  = backFile ? await compressImage(backFile) : null;
+              const report = await apiFetch('/api/report', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ card_id: match_id, lang: searchLangRef.current, front_image: frontB64, back_image: backB64 }),
+              });
+              onConfirm({ report, selectedId: match_id });
+            } catch (e) {
+              setError(e.message);
+              setConfirming(false);
+            }
+            return;
+          }
+        }
       } else {
         setCandidates([]);
       }
@@ -959,7 +987,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
     } finally {
       setLoading(false);
     }
-  }, [identity, lang, cardNumber]);
+  }, [identity, lang, cardNumber, frontFile, backFile, onConfirm]);
 
   React.useEffect(() => { doSearch(identity?.name || '', identity?.number || ''); }, []);
 
@@ -1063,10 +1091,10 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
         </div>
       </form>
 
-      {loading && (
+      {(loading || confirming) && candidates.length === 0 && (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'48px 16px', color:theme.muted }}>
           <Spinner size={28} color={accent}/>
-          <span style={{ fontSize:13 }}>Recherche dans TCGdex…</span>
+          <span style={{ fontSize:13 }}>{confirming ? 'Carte identifiée, analyse en cours…' : 'Recherche dans TCGdex…'}</span>
         </div>
       )}
 

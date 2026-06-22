@@ -445,11 +445,18 @@ async def auto_match(body: AutoMatchRequest):
                 best_set_score = score
                 set_match = cid
 
-        # Priority 3 (JP old-format only): prefer earliest known vintage sets
-        # (base1, jungle, fossil, gym1/2) as they share the 3-digit number format
-        if jp_old_number and card_set_id in ("base1", "jungle", "fossil", "gym1", "gym2", "base2", "neo1", "neo2", "neo3", "neo4"):
-            if best_set_score < 4:  # only override if no strong set-name match
-                best_set_score = 4
+        # Priority 3 (JP old-format only): prefer earliest known vintage sets.
+        # Ordered so base1 beats jungle beats fossil etc. — critical when a
+        # Pokémon appears in multiple vintage sets (different JP numbers, same EN name).
+        _VINTAGE_PRIORITY = {
+            "base1": 14, "jungle": 13, "fossil": 12,
+            "gym1": 11,  "gym2": 10,  "base2": 9,
+            "neo1": 8,   "neo2": 7,   "neo3": 6,  "neo4": 5,
+        }
+        if jp_old_number and card_set_id in _VINTAGE_PRIORITY:
+            prio = _VINTAGE_PRIORITY[card_set_id] + 4  # always beats set-name score (max 3)
+            if prio > best_set_score:
+                best_set_score = prio
                 set_match = cid
 
     if acceptable:
