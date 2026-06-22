@@ -398,7 +398,7 @@ async def auto_match(body: AutoMatchRequest):
     # would otherwise hide the JP vintage scoring path.
     detect_lang = (body.original_lang or lang or "").lower()
     jp_old_number = (
-        detect_lang == "ja"
+        detect_lang in ("ja", "jp")  # "jp" = raw scan identity lang, "ja" = TCGdex lang code
         and "/" not in number
         and number.lstrip("0").isdigit()
     )
