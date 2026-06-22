@@ -712,7 +712,11 @@ async def register(body: RegisterRequest):
 
     db = supabase_client()
 
-    existing = db.table("users").select("id").eq("pseudo", pseudo).execute()
+    try:
+        existing = db.table("users").select("id").eq("pseudo", pseudo).execute()
+    except Exception as e:
+        raise HTTPException(500, f"Erreur base de données — la table 'users' existe-t-elle ? (exécutez database/auth_schema.sql dans Supabase) : {e}")
+
     if existing.data:
         raise HTTPException(409, "Ce pseudo est déjà pris")
 
@@ -720,11 +724,14 @@ async def register(body: RegisterRequest):
     if existing_email.data:
         raise HTTPException(409, "Cet email est déjà utilisé")
 
-    result = db.table("users").insert({
-        "pseudo":        pseudo,
-        "email":         email,
-        "password_hash": hash_password(body.password),
-    }).execute()
+    try:
+        result = db.table("users").insert({
+            "pseudo":        pseudo,
+            "email":         email,
+            "password_hash": hash_password(body.password),
+        }).execute()
+    except Exception as e:
+        raise HTTPException(500, f"Erreur lors de l'insertion : {e}")
 
     if not result.data:
         raise HTTPException(500, "Erreur lors de la création du compte")
