@@ -154,7 +154,26 @@ const THEMES = {
   },
 };
 
-const ACCENTS = { Gold: '#d4af37', Sapphire: '#5b9eff', Ruby: '#e0526b', Emerald: '#48c08c' };
+const ACCENTS = { Gold: '#d4af37', Sapphire: '#5b9eff', Ruby: '#e0526b', Emerald: '#48c08c', Violet: '#8b5cf6', Coral: '#f97316' };
+const ACCENT_OPTIONS = [
+  { key:'Gold',     color:'#d4af37', label:'Or'       },
+  { key:'Sapphire', color:'#5b9eff', label:'Saphir'   },
+  { key:'Ruby',     color:'#e0526b', label:'Rubis'     },
+  { key:'Emerald',  color:'#48c08c', label:'Émeraude'  },
+  { key:'Violet',   color:'#8b5cf6', label:'Violet'    },
+  { key:'Coral',    color:'#f97316', label:'Corail'    },
+];
+const POKEMON_ROSTER = [
+  { id:25,  name:'Pikachu'    }, { id:6,   name:'Dracaufeu'  }, { id:9,   name:'Tortank'    },
+  { id:3,   name:'Florizarre' }, { id:150, name:'Mewtwo'     }, { id:151, name:'Mew'         },
+  { id:94,  name:'Ectoplasma' }, { id:143, name:'Ronflex'    }, { id:130, name:'Léviator'   },
+  { id:149, name:'Dracolosse' }, { id:196, name:'Mentali'    }, { id:197, name:'Noctali'    },
+  { id:249, name:'Lugia'      }, { id:250, name:'Ho-Oh'      }, { id:282, name:'Gardevoir'  },
+  { id:384, name:'Rayquaza'   }, { id:448, name:'Lucario'    }, { id:445, name:'Carchacrok' },
+  { id:571, name:'Zoroark'    }, { id:133, name:'Évoli'      }, { id:700, name:'Nymphali'   },
+  { id:658, name:'Amphinobi'  }, { id:483, name:'Dialga'     }, { id:484, name:'Palkia'     },
+  { id:487, name:'Giratina'   },
+];
 
 const GRADE = { good: '#3ea872', mid: '#d99036', bad: '#c8434f' };
 function gradeColor(s) { return s >= 8 ? GRADE.good : s >= 5 ? GRADE.mid : GRADE.bad; }
@@ -585,43 +604,141 @@ function ScanHeader({ theme, step, back }) {
   );
 }
 
-/* ── SettingsSheet ────────────────────────────────────────────────────── */
-function SettingsSheet({ theme, accent, dark, onDark, onClose, onReplayTutorial }) {
+/* ── ProfileSheet ─────────────────────────────────────────────────────── */
+function ProfileSheet({ theme, accent, dark, onDark, onClose, onReplayTutorial, authUser, onLogout, collection, accentKey, onAccent }) {
+  const [avatarId, setAvatarId] = React.useState(() => parseInt(localStorage.getItem('pg_avatar') || '25'));
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+
+  const totalCards = collection.length;
+  const totalValue = collection.reduce((s, i) => s + (i.report?.valuation?.estimated_value || 0), 0);
+  const bestGrade  = totalCards ? Math.max(...collection.map(i => i.report?.condition?.overall_score || 0)) : 0;
+
+  const trainerTitle = totalCards >= 50 ? 'Champion Pokémon'
+    : totalCards >= 30 ? 'As de la Ligue'
+    : totalCards >= 15 ? 'Maître des Arènes'
+    : totalCards >= 5  ? 'Dresseur Confirmé'
+    : 'Aspirant Dresseur';
+
+  const sprite = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+
+  const pickAvatar = id => { setAvatarId(id); localStorage.setItem('pg_avatar', id); setPickerOpen(false); };
+
   return (
     <div style={{ position:'fixed', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, padding:'12px 20px 40px', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
-        <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, maxHeight:'92dvh', display:'flex', flexDirection:'column', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
+
+        {/* Handle */}
+        <div style={{ display:'flex', justifyContent:'center', padding:'8px 0 0', flexShrink:0 }}>
           <div style={{ width:36, height:4, borderRadius:99, background:theme.border }}/>
         </div>
-        <div style={{ fontFamily:"'Geist', system-ui", fontSize:16, fontWeight:600, color:theme.text, marginBottom:20 }}>Apparence</div>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <span style={{ fontSize:14, color:theme.text }}>Mode sombre</span>
-          <button onClick={() => onDark(!dark)} style={{
-            width:48, height:28, borderRadius:99, border:'none', cursor:'pointer',
-            background: dark ? accent : theme.border,
-            position:'relative', transition:'background .2s',
-          }}>
-            <div style={{
-              position:'absolute', top:3, left: dark ? 23 : 3,
-              width:22, height:22, borderRadius:99, background:'#fff',
-              transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
-            }}/>
-          </button>
-        </div>
-        <div style={{ height:1, background:theme.borderS, margin:'20px 0' }}/>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div>
-            <div style={{ fontSize:14, color:theme.text }}>Tutoriel</div>
-            <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Relancer la visite guidée</div>
+
+        <div style={{ overflow:'auto', padding:'16px 20px 44px' }}>
+
+          {/* ── Avatar + Identité ── */}
+          <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
+            <button onClick={() => setPickerOpen(p => !p)} style={{ position:'relative', border:'none', background:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
+              <div style={{ width:72, height:72, borderRadius:20, background:`linear-gradient(135deg,${accent}28,${accent}50)`, border:`2px solid ${accent}70`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                <img src={sprite(avatarId)} alt="" style={{ width:64, height:64, objectFit:'contain' }} onError={e => { e.target.style.display='none'; }}/>
+              </div>
+              <div style={{ position:'absolute', bottom:-3, right:-3, width:22, height:22, borderRadius:99, background:accent, display:'flex', alignItems:'center', justifyContent:'center', border:`2px solid ${theme.bg}`, fontSize:11 }}>✏️</div>
+            </button>
+            <div style={{ flex:1, minWidth:0 }}>
+              {authUser ? (
+                <>
+                  <div style={{ fontFamily:"'Geist',system-ui", fontSize:19, fontWeight:700, color:theme.text, letterSpacing:'-0.025em', lineHeight:1.2 }}>@{authUser.pseudo}</div>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, marginTop:6, padding:'3px 10px', borderRadius:99, background:`${accent}18`, border:`1px solid ${accent}44` }}>
+                    <span style={{ fontSize:11 }}>🏅</span>
+                    <span style={{ fontFamily:"'Geist',system-ui", fontSize:11, fontWeight:600, color:accent }}>{trainerTitle}</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontFamily:"'Geist',system-ui", fontSize:15, fontWeight:600, color:theme.text }}>Mode invité</div>
+              )}
+            </div>
           </div>
-          <button onClick={() => { onClose(); onReplayTutorial(); }} style={{
-            height:34, padding:'0 14px', borderRadius:99, border:`1px solid ${theme.border}`,
-            background:theme.surface, color:theme.text, cursor:'pointer',
-            fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight:500,
-            display:'flex', alignItems:'center', gap:6,
-          }}>
-            <Icon.spark size={12} color={accent}/> Refaire
-          </button>
+
+          {/* ── Picker Pokémon ── */}
+          {pickerOpen && (
+            <div style={{ marginBottom:20, padding:12, borderRadius:18, border:`1px solid ${theme.borderS}`, background:theme.surface }}>
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', color:theme.faint, textTransform:'uppercase', marginBottom:10 }}>Choisis ton Pokémon</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
+                {POKEMON_ROSTER.map(p => (
+                  <button key={p.id} onClick={() => pickAvatar(p.id)} style={{
+                    padding:'8px 4px 6px', borderRadius:12, cursor:'pointer',
+                    border: avatarId === p.id ? `2px solid ${accent}` : `1px solid ${theme.borderS}`,
+                    background: avatarId === p.id ? `${accent}14` : theme.bg,
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:3,
+                  }}>
+                    <img src={sprite(p.id)} alt={p.name} style={{ width:42, height:42, objectFit:'contain' }} onError={e => { e.target.style.display='none'; }}/>
+                    <span style={{ fontFamily:"'Geist',system-ui", fontSize:8, color: avatarId === p.id ? accent : theme.muted, fontWeight: avatarId === p.id ? 700 : 400, textAlign:'center', lineHeight:1.2 }}>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Stats ── */}
+          {totalCards > 0 && (
+            <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+              {[
+                { label:'Cartes', value:totalCards,                         icon:'🃏' },
+                { label:'Valeur', value:`${Math.round(totalValue)} €`,      icon:'💰' },
+                { label:'Top',    value:bestGrade ? `${bestGrade.toFixed(1)}/10` : '—', icon:'⭐' },
+              ].map(s => (
+                <div key={s.label} style={{ flex:1, padding:'10px 6px', borderRadius:14, background:theme.surface, border:`1px solid ${theme.borderS}`, textAlign:'center' }}>
+                  <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
+                  <div style={{ fontFamily:"'Geist',system-ui", fontSize:16, fontWeight:700, color:theme.text, letterSpacing:'-0.02em' }}>{s.value}</div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:theme.faint, textTransform:'uppercase', marginTop:2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Couleur d'accent ── */}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.12em', color:theme.faint, textTransform:'uppercase', marginBottom:10 }}>Couleur d'accent</div>
+            <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
+              {ACCENT_OPTIONS.map(a => (
+                <button key={a.key} onClick={() => onAccent(a.key)} style={{
+                  display:'flex', alignItems:'center', gap:6, height:34, padding:'0 12px', borderRadius:99, cursor:'pointer',
+                  border: accentKey === a.key ? `2px solid ${a.color}` : `1px solid ${theme.border}`,
+                  background: accentKey === a.key ? `${a.color}18` : theme.surface,
+                }}>
+                  <div style={{ width:10, height:10, borderRadius:99, background:a.color, flexShrink:0 }}/>
+                  <span style={{ fontFamily:"'Geist',system-ui", fontSize:12, fontWeight: accentKey === a.key ? 600 : 400, color: accentKey === a.key ? a.color : theme.text }}>{a.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Apparence ── */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+            <span style={{ fontSize:14, color:theme.text }}>Mode sombre</span>
+            <button onClick={() => onDark(!dark)} style={{ width:48, height:28, borderRadius:99, border:'none', cursor:'pointer', background: dark ? accent : theme.border, position:'relative', transition:'background .2s' }}>
+              <div style={{ position:'absolute', top:3, left: dark ? 23 : 3, width:22, height:22, borderRadius:99, background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)' }}/>
+            </button>
+          </div>
+
+          <div style={{ height:1, background:theme.borderS, marginBottom:16 }}/>
+
+          {/* ── Tutoriel ── */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+            <div>
+              <div style={{ fontSize:14, color:theme.text }}>Tutoriel</div>
+              <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Relancer la visite guidée</div>
+            </div>
+            <button onClick={() => { onClose(); onReplayTutorial(); }} style={{ height:34, padding:'0 14px', borderRadius:99, border:`1px solid ${theme.border}`, background:theme.surface, color:theme.text, cursor:'pointer', fontFamily:"'Geist',system-ui", fontSize:12.5, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
+              <Icon.spark size={12} color={accent}/> Refaire
+            </button>
+          </div>
+
+          {/* ── Déconnexion ── */}
+          {authUser && (
+            <button onClick={() => { onLogout(); onClose(); }} style={{ width:'100%', height:44, borderRadius:14, border:`1px solid ${GRADE.bad}44`, background:`${GRADE.bad}0e`, color:GRADE.bad, cursor:'pointer', fontFamily:"'Geist',system-ui", fontSize:14, fontWeight:600 }}>
+              Déconnecter @{authUser.pseudo}
+            </button>
+          )}
+
         </div>
       </div>
     </div>
@@ -761,14 +878,17 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
           border:`1px solid ${theme.borderS}`, background:theme.surface,
           display:'flex', alignItems:'center', gap:12,
         }}>
-          <div style={{ width:44, height:44, borderRadius:12, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center', color:accent }}>
-            <Icon.user size={20}/>
+          <div style={{ width:44, height:44, borderRadius:12, background:`${accent}18`, border:`1px solid ${accent}30`, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {authUser
+              ? <img src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${parseInt(localStorage.getItem('pg_avatar')||'25')}.png`} style={{ width:40, height:40, objectFit:'contain' }} onError={e => { e.target.style.display='none'; }}/>
+              : <Icon.user size={20} color={accent}/>
+            }
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             {authUser ? (
               <>
-                <div style={{ fontSize:13.5, fontWeight:500, color:theme.text, letterSpacing:'-0.01em' }}>@{authUser.pseudo}</div>
-                <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Collection synchronisée · cloud</div>
+                <div style={{ fontSize:13.5, fontWeight:600, color:theme.text, letterSpacing:'-0.01em' }}>@{authUser.pseudo}</div>
+                <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Collection synchronisée · cloud ☁️</div>
               </>
             ) : (
               <>
@@ -777,14 +897,7 @@ function Dashboard({ theme, accent, collection, goTo, openSell, authUser, openAu
               </>
             )}
           </div>
-          {authUser ? (
-            <button onClick={onLogout} style={{
-              height:32, padding:'0 12px', borderRadius:99,
-              border:`1px solid ${theme.border}`,
-              background:'transparent', color:theme.muted, cursor:'pointer',
-              fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:500,
-            }}>Déconnecter</button>
-          ) : (
+          {!authUser && (
             <button onClick={openAuth} style={{
               height:32, padding:'0 14px', borderRadius:99, border:'none',
               background:theme.text, color:theme.bg, cursor:'pointer',
@@ -2891,9 +3004,12 @@ function BottomTabs({ tab, setTab, theme, accent }) {
 
 /* ── App ──────────────────────────────────────────────────────────────── */
 function App() {
-  const [dark, setDark] = React.useState(true);
+  const [dark, setDark]           = React.useState(() => localStorage.getItem('pg_dark') !== 'false');
+  const [accentKey, setAccentKey] = React.useState(() => localStorage.getItem('pg_accent') || 'Gold');
   const theme  = THEMES[dark ? 'dark' : 'light'];
-  const accent = ACCENTS.Gold;
+  const accent = ACCENTS[accentKey] || ACCENTS.Gold;
+  const handleDark   = v => { setDark(v); localStorage.setItem('pg_dark', v); };
+  const handleAccent = k => { setAccentKey(k); localStorage.setItem('pg_accent', k); };
 
   const [screen, setScreen]     = React.useState('home');
   const [screenArgs, setArgs]   = React.useState({});
@@ -3162,7 +3278,7 @@ function App() {
       </div>
       <BottomTabs tab={tab} setTab={setTab} theme={theme} accent={accent}/>
       {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell} demoListing={sellItem?.id === 'sandbox-1' ? DEMO_LISTING : null}/>}
-      {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)} onReplayTutorial={replayTutorial}/>}
+      {settingsOpen && <ProfileSheet theme={theme} accent={accent} dark={dark} onDark={handleDark} onClose={() => setSettingsOpen(false)} onReplayTutorial={replayTutorial} authUser={authUser} onLogout={handleLogout} collection={activeCollection} accentKey={accentKey} onAccent={handleAccent}/>}
       {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
       {shareOpen    && <ShareModal   theme={theme} report={shareItem} onClose={() => { setShareOpen(false); setShareItem(null); }}/>}
       {toast        && <Toast message={toast} onDone={() => setToast(null)}/>}
