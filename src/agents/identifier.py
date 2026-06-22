@@ -72,7 +72,7 @@ Le symbole de rareté est en bas à droite, près du numéro :
 
 FORMAT DE RÉPONSE JSON :
 {
-  "name": "nom du Pokémon tel qu'imprimé",
+  "name": "nom de la carte tel qu'imprimé (voir règles ci-dessous)",
   "number": "numéro exact tel qu'imprimé (ex: 2/102 ou 009)",
   "language": "FR|EN|JP|DE|IT|ES|KO|PT",
   "set_name": "nom du set si visible, sinon null",
@@ -82,6 +82,15 @@ FORMAT DE RÉPONSE JSON :
   "number_uncertain": false,
   "confidence": 0.95
 }
+
+RÈGLES POUR LE NOM :
+- Pour les cartes Pokémon : utilise le nom du Pokémon uniquement (ex: "Dracaufeu", "Pikachu VMAX")
+- Pour les cartes Dresseur/Trainer (Supporter, Objet, Stade, Outil) :
+  * Le TYPE de carte ("Dresseur", "Supporter", "Objet", "Stade", "Item", "Trainer") est imprimé
+    au-dessus du NOM de la carte. Ne l'inclus PAS dans le champ "name".
+  * Extrait UNIQUEMENT le titre de la carte (ex: "Détermination d'Ondine", "Professorbirch", "Soin")
+  * NE PAS retourner "Dresseur - Détermination d'Ondine" → retourner "Détermination d'Ondine"
+  * NE PAS retourner "Supporter - Lysandre" → retourner "Lysandre"
 
 RÈGLES POUR is_first_edition :
 Cherche un tampon ovale avec "1" et "EDITION" (ou "1st Edition" / "1ère Édition") en bas à gauche

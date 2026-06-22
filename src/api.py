@@ -173,6 +173,23 @@ async def search_cards(body: SearchRequest):
             candidates = candidates + new_cards
             break
 
+    # If still empty, strip common trainer-type prefixes Vision sometimes prepends
+    # (e.g. "Dresseur - Détermination d'Ondine" → "Détermination d'Ondine")
+    if not candidates:
+        import re
+        TRAINER_PREFIXES = re.compile(
+            r"^(Dresseur|Supporter|Objet|Stade|Outil(?:\s+Pokémon)?|"
+            r"Trainer|Item|Stadium|Tool|Pokémon\s+Tool)\s*[-–]\s*",
+            re.IGNORECASE,
+        )
+        stripped = TRAINER_PREFIXES.sub("", body.name).strip()
+        if stripped and stripped.lower() != body.name.lower():
+            for try_lang in (primary_lang, "fr", "en"):
+                candidates = _fetch_cards(try_lang, stripped)
+                if candidates:
+                    active_lang = try_lang
+                    break
+
     if not candidates:
         return {"candidates": [], "lang": active_lang}
 
