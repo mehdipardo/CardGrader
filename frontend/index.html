@@ -212,100 +212,121 @@ const SET_TOTALS = {
 
 /* ── DEMO COLLECTION (tutorial sandbox) ──────────────────────────────── */
 const DEMO_COLLECTION = [
+  // [0] — used as grading spotlight in tutorial step 4
   {
-    id: 'sandbox-1', is_sandbox: true, addedAt: '01 juin',
+    id: 'sandbox-1', is_sandbox: true, addedAt: '16 juin',
     report: {
-      identity: { name: 'Tortank', number: '2/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/2' },
-      condition: { overall_score: 3.4, centering: 5.5, corners: 2.5, edges: 3.0, surface: 3.5, confidence: 0.82 },
-      pricing: { raw_price: 100, language_specific: true },
-      valuation: { estimated_value: 20, value_range_low: 12, value_range_high: 30, confidence_score: 0.82 },
-    },
-  },
-  {
-    id: 'sandbox-2', is_sandbox: true, addedAt: '02 juin',
-    report: {
-      identity: { name: 'Alakazam', number: '1/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/1' },
-      condition: { overall_score: 4.8, centering: 5.5, corners: 4.0, edges: 4.5, surface: 5.0, confidence: 0.84 },
-      pricing: { raw_price: 35, language_specific: true },
-      valuation: { estimated_value: 12, value_range_low: 8, value_range_high: 18, confidence_score: 0.84 },
-    },
-  },
-  {
-    id: 'sandbox-3', is_sandbox: true, addedAt: '03 juin',
-    report: {
-      identity: { name: 'Pikachu VMAX', number: '44/185', language: 'FR', set_name: 'Épée et Bouclier', rarity: 'Rare VMAX', image: 'https://assets.tcgdex.net/fr/swsh/swsh1/44' },
-      condition: { overall_score: 8.2, centering: 8.5, corners: 8.0, edges: 8.0, surface: 8.5, confidence: 0.88 },
-      pricing: { raw_price: 22, language_specific: true },
-      valuation: { estimated_value: 17, value_range_low: 14, value_range_high: 20, confidence_score: 0.88 },
-    },
-  },
-  {
-    id: 'sandbox-4', is_sandbox: true, addedAt: '04 juin',
-    report: {
-      identity: { name: 'Dracaufeu VMAX', number: '20/189', language: 'FR', set_name: 'Ténèbres Embrasées', rarity: 'Rare VMAX', image: 'https://assets.tcgdex.net/fr/swsh/swsh3/20' },
-      condition: { overall_score: 9.0, centering: 9.0, corners: 9.0, edges: 9.0, surface: 9.0, confidence: 0.92 },
-      pricing: { raw_price: 20, language_specific: true },
-      valuation: { estimated_value: 17, value_range_low: 14, value_range_high: 19, confidence_score: 0.92 },
-    },
-  },
-  {
-    id: 'sandbox-5', is_sandbox: true, addedAt: '05 juin',
-    report: {
-      identity: { name: 'Magicarpe', number: '35/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', image: 'https://assets.tcgdex.net/fr/base/base1/35' },
-      condition: { overall_score: 2.8, centering: 3.5, corners: 2.0, edges: 2.5, surface: 3.0, confidence: 0.79 },
-      pricing: { raw_price: 4, language_specific: true },
-      valuation: { estimated_value: 1, value_range_low: 0.5, value_range_high: 2, confidence_score: 0.79 },
-    },
-  },
-  {
-    id: 'sandbox-6', is_sandbox: true, addedAt: '06 juin',
-    report: {
-      identity: { name: 'Florizarre', number: '15/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/15' },
-      condition: { overall_score: 9.2, centering: 9.5, corners: 9.0, edges: 9.0, surface: 9.5, confidence: 0.94 },
-      pricing: { raw_price: 38, language_specific: true },
-      valuation: { estimated_value: 28, value_range_low: 20, value_range_high: 38, confidence_score: 0.94 },
-    },
-  },
-  {
-    id: 'sandbox-7', is_sandbox: true, addedAt: '07 juin',
-    report: {
-      identity: { name: 'Caterpie', number: '45/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/45' },
-      condition: { overall_score: 4.5, centering: 5.0, corners: 4.0, edges: 4.5, surface: 4.5, confidence: 0.80 },
-      pricing: { raw_price: 1.5, language_specific: true },
-      valuation: { estimated_value: 0.5, value_range_low: 0.3, value_range_high: 0.8, confidence_score: 0.80 },
-    },
-  },
-  {
-    id: 'sandbox-8', is_sandbox: true, addedAt: '08 juin',
-    report: {
-      identity: { name: 'Rayquaza V', number: '110/203', language: 'EN', set_name: 'Evolving Skies', rarity: 'Rare Ultra', image: 'https://assets.tcgdex.net/en/swsh/swsh7/110' },
-      condition: { overall_score: 7.5, centering: 7.5, corners: 7.5, edges: 7.5, surface: 7.5, confidence: 0.85 },
-      pricing: { raw_price: 12, language_specific: true },
-      valuation: { estimated_value: 9, value_range_low: 7, value_range_high: 11, confidence_score: 0.85 },
-    },
-  },
-  {
-    id: 'sandbox-9', is_sandbox: true, addedAt: '09 juin',
-    report: {
-      identity: { name: 'Bulbizarre', number: '44/102', language: 'FR', set_name: 'Set de Base', rarity: 'Commune', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/44' },
-      condition: { overall_score: 6.0, centering: 6.5, corners: 5.5, edges: 6.0, surface: 6.0, confidence: 0.82 },
-      pricing: { raw_price: 5, language_specific: true },
-      valuation: { estimated_value: 2, value_range_low: 1.5, value_range_high: 2.5, confidence_score: 0.82 },
-    },
-  },
-  {
-    id: 'sandbox-10', is_sandbox: true, addedAt: '10 juin',
-    report: {
-      identity: { name: 'Dracaufeu', number: '4/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/4' },
+      identity: { name: 'Dracaufeu', number: '4/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/4' },
       condition: { overall_score: 6.5, centering: 7.0, corners: 6.0, edges: 6.5, surface: 7.0, confidence: 0.88 },
       pricing: { raw_price: 280, language_specific: true },
       valuation: { estimated_value: 105, value_range_low: 80, value_range_high: 135, confidence_score: 0.88 },
     },
   },
   {
-    id: 'sandbox-11', is_sandbox: true, addedAt: '11 juin',
+    id: 'sandbox-2', is_sandbox: true, addedAt: '15 juin',
     report: {
-      identity: { name: 'Mewtwo', number: '10/102', language: 'FR', set_name: 'Set de Base', rarity: 'Rare Holo', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/10' },
+      identity: { name: 'Florizarre', number: '15/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/15' },
+      condition: { overall_score: 9.2, centering: 9.5, corners: 9.0, edges: 9.0, surface: 9.5, confidence: 0.94 },
+      pricing: { raw_price: 38, language_specific: true },
+      valuation: { estimated_value: 28, value_range_low: 20, value_range_high: 38, confidence_score: 0.94 },
+    },
+  },
+  {
+    // JP vintage card — shows cross-language feature (image from EN equivalent)
+    id: 'sandbox-3', is_sandbox: true, addedAt: '14 juin',
+    report: {
+      identity: { name: 'カメックス', number: '009', language: 'JP', set_name: 'Set de Base JP', set_code: 'base1', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/en/base/base1/2', equiv_lang: 'EN' },
+      condition: { overall_score: 7.8, centering: 8.0, corners: 7.5, edges: 7.5, surface: 8.0, confidence: 0.86 },
+      pricing: { raw_price: 180, language_specific: true },
+      valuation: { estimated_value: 95, value_range_low: 70, value_range_high: 120, confidence_score: 0.86 },
+    },
+  },
+  {
+    id: 'sandbox-4', is_sandbox: true, addedAt: '13 juin',
+    report: {
+      identity: { name: 'Dracaufeu ex', number: '6/165', language: 'FR', set_name: 'Flammes Obsidiennes', set_code: 'sv3', rarity: 'Double Rare', image: 'https://assets.tcgdex.net/fr/sv/sv3/6' },
+      condition: { overall_score: 9.1, centering: 9.0, corners: 9.5, edges: 9.0, surface: 9.0, confidence: 0.93 },
+      pricing: { raw_price: 45, language_specific: true },
+      valuation: { estimated_value: 38, value_range_low: 28, value_range_high: 48, confidence_score: 0.93 },
+    },
+  },
+  {
+    id: 'sandbox-5', is_sandbox: true, addedAt: '12 juin',
+    report: {
+      identity: { name: 'Mew ex', number: '151/165', language: 'FR', set_name: 'Scarlet & Violet — 151', set_code: 'sv2a', rarity: 'Double Rare', image: 'https://assets.tcgdex.net/fr/sv/sv2a/151' },
+      condition: { overall_score: 8.5, centering: 8.5, corners: 8.5, edges: 8.5, surface: 8.5, confidence: 0.91 },
+      pricing: { raw_price: 35, language_specific: true },
+      valuation: { estimated_value: 28, value_range_low: 20, value_range_high: 36, confidence_score: 0.91 },
+    },
+  },
+  {
+    id: 'sandbox-6', is_sandbox: true, addedAt: '11 juin',
+    report: {
+      identity: { name: 'Pikachu VMAX', number: '44/185', language: 'FR', set_name: 'Épée et Bouclier', set_code: 'swsh1', rarity: 'Rare VMAX', image: 'https://assets.tcgdex.net/fr/swsh/swsh1/44' },
+      condition: { overall_score: 8.2, centering: 8.5, corners: 8.0, edges: 8.0, surface: 8.5, confidence: 0.88 },
+      pricing: { raw_price: 22, language_specific: true },
+      valuation: { estimated_value: 17, value_range_low: 14, value_range_high: 20, confidence_score: 0.88 },
+    },
+  },
+  {
+    id: 'sandbox-7', is_sandbox: true, addedAt: '10 juin',
+    report: {
+      identity: { name: 'Lucario VSTAR', number: '78/172', language: 'FR', set_name: 'Étoiles Brillantes', set_code: 'swsh9', rarity: 'Rare VSTAR', image: 'https://assets.tcgdex.net/fr/swsh/swsh9/78' },
+      condition: { overall_score: 7.0, centering: 7.0, corners: 7.0, edges: 7.0, surface: 7.0, confidence: 0.84 },
+      pricing: { raw_price: 8, language_specific: true },
+      valuation: { estimated_value: 6, value_range_low: 4, value_range_high: 8, confidence_score: 0.84 },
+    },
+  },
+  {
+    id: 'sandbox-8', is_sandbox: true, addedAt: '09 juin',
+    report: {
+      identity: { name: 'Rayquaza V', number: '110/203', language: 'EN', set_name: 'Evolving Skies', set_code: 'swsh7', rarity: 'Rare Ultra', image: 'https://assets.tcgdex.net/en/swsh/swsh7/110' },
+      condition: { overall_score: 7.5, centering: 7.5, corners: 7.5, edges: 7.5, surface: 7.5, confidence: 0.85 },
+      pricing: { raw_price: 12, language_specific: true },
+      valuation: { estimated_value: 9, value_range_low: 7, value_range_high: 11, confidence_score: 0.85 },
+    },
+  },
+  {
+    id: 'sandbox-9', is_sandbox: true, addedAt: '08 juin',
+    report: {
+      identity: { name: 'Tortank', number: '2/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/2' },
+      condition: { overall_score: 3.4, centering: 5.5, corners: 2.5, edges: 3.0, surface: 3.5, confidence: 0.82 },
+      pricing: { raw_price: 100, language_specific: true },
+      valuation: { estimated_value: 20, value_range_low: 12, value_range_high: 30, confidence_score: 0.82 },
+    },
+  },
+  {
+    id: 'sandbox-10', is_sandbox: true, addedAt: '07 juin',
+    report: {
+      identity: { name: 'Alakazam', number: '1/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/1' },
+      condition: { overall_score: 4.8, centering: 5.5, corners: 4.0, edges: 4.5, surface: 5.0, confidence: 0.84 },
+      pricing: { raw_price: 35, language_specific: true },
+      valuation: { estimated_value: 12, value_range_low: 8, value_range_high: 18, confidence_score: 0.84 },
+    },
+  },
+  {
+    id: 'sandbox-11', is_sandbox: true, addedAt: '06 juin',
+    report: {
+      identity: { name: 'Magicarpe', number: '35/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Commune', image: 'https://assets.tcgdex.net/fr/base/base1/35' },
+      condition: { overall_score: 2.8, centering: 3.5, corners: 2.0, edges: 2.5, surface: 3.0, confidence: 0.79 },
+      pricing: { raw_price: 4, language_specific: true },
+      valuation: { estimated_value: 1, value_range_low: 0.5, value_range_high: 2, confidence_score: 0.79 },
+    },
+  },
+  {
+    id: 'sandbox-12', is_sandbox: true, addedAt: '05 juin',
+    report: {
+      identity: { name: 'Bulbizarre', number: '44/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Commune', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/44' },
+      condition: { overall_score: 6.0, centering: 6.5, corners: 5.5, edges: 6.0, surface: 6.0, confidence: 0.82 },
+      pricing: { raw_price: 5, language_specific: true },
+      valuation: { estimated_value: 2, value_range_low: 1.5, value_range_high: 2.5, confidence_score: 0.82 },
+    },
+  },
+  // [12] — last item, used by "Vendre" CTA demo
+  {
+    id: 'sandbox-13', is_sandbox: true, addedAt: '04 juin',
+    report: {
+      identity: { name: 'Mewtwo', number: '10/102', language: 'FR', set_name: 'Set de Base', set_code: 'base1', rarity: 'Rare Holo', is_first_edition: true, image: 'https://assets.tcgdex.net/fr/base/base1/10' },
       condition: { overall_score: 9.3, centering: 9.5, corners: 9.0, edges: 9.0, surface: 9.5, confidence: 0.95 },
       pricing: { raw_price: 120, language_specific: true },
       valuation: { estimated_value: 220, value_range_low: 170, value_range_high: 280, confidence_score: 0.95 },
@@ -1801,14 +1822,16 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
   const bubbleRef = React.useRef(null);
 
   const STEPS = [
-    { title: 'Bienvenue sur PokéGrader 🎴', text: "Estime, suis et vends tes cartes Pokémon TCG avec l'intelligence artificielle. Voici un tour rapide en 90 secondes.", target: null },
-    { title: 'Ta collection en un coup d\'œil', text: 'Valeur totale, nombre de cartes, scans récents — tout est mis à jour automatiquement.', target: 'stats-row' },
-    { title: 'Chaque carte est évaluée par l\'IA', text: 'Score d\'état, prix estimé selon CardMarket, et possibilité de vendre en un clic.', target: 'recent-card-0' },
-    { title: 'Score détaillé, critère par critère', text: 'Centrage, coins, bords, surface — chaque aspect est analysé séparément pour un grade précis sur 10.', target: 'grading-section' },
-    { title: 'Scanne tes propres cartes', text: 'Prends une photo recto + verso, l\'IA identifie la carte et évalue son état en quelques secondes.', target: 'scan-hero' },
-    { title: 'Vends en un clic', text: 'L\'IA rédige une annonce en quelques secondes, adaptée à chaque plateforme.', target: 'sell-cta-btn' },
-    { title: 'Annonce rédigée en 10 secondes', text: 'Titre accrocheur, description optimisée, prix suggéré selon CardMarket — prêt à copier-coller.', target: null, hasMockListing: true },
-    { title: 'Prêt à commencer ?', text: 'Crée un compte pour sauvegarder ta collection dans le temps, ou continue en mode invité pour tester.', target: null, isFinal: true },
+    { title: 'Bienvenue sur PokéGrader 🎴', text: "Évalue tes cartes Pokémon avec l'IA, suis ta collection et vends en un clic. Tour rapide en 2 minutes.", target: null },
+    { title: 'Ta collection en un coup d\'œil', text: 'Valeur totale estimée, nombre de cartes et scans récents — tout est recalculé automatiquement après chaque scan.', target: 'stats-row' },
+    { title: 'Chaque carte évaluée par l\'IA', text: 'Score d\'état, prix CardMarket, langue, rareté et édition — identifiés automatiquement depuis tes photos.', target: 'recent-card-0' },
+    { title: 'Grade précis, critère par critère', text: 'Centrage, coins, bords et surface sont analysés séparément. Le score sur 10 reflète l\'état réel de la carte.', target: 'grading-section' },
+    { title: 'Scanne en 30 secondes', text: 'Photo recto + verso. L\'IA identifie la carte, son édition et calcule son état — même pour les cartes japonaises ou vintage.', target: 'scan-hero' },
+    { title: 'Browse par set', text: 'Toutes tes cartes regroupées par édition avec valeur totale par set — idéal pour suivre une collection thématique.', target: null, hasMockSets: true },
+    { title: 'Pokédex de ta collection', text: 'Visualise quels Pokémon tu possèdes, génération par génération. Parfait pour tracker ta complétion.', target: null, hasMockDex: true },
+    { title: 'Cartes multilingues & JP vintage', text: 'FR, EN, JP, DE, ES… la langue est détectée automatiquement. Pour les sets JP vintage introuvables, l\'équivalent EN est utilisé avec une note.', target: null, hasMockJP: true },
+    { title: 'Vends en un clic', text: 'L\'IA rédige une annonce adaptée à Vinted, eBay ou CardMarket — titre, description, prix et hashtags en 10 secondes.', target: 'sell-cta-btn' },
+    { title: 'Prêt à commencer ?', text: 'Explore le sandbox avec de vraies cartes d\'exemple, ou crée un compte pour sauvegarder ta collection.', target: null, isFinal: true },
   ];
 
   const current = STEPS[step - 1];
@@ -1910,7 +1933,7 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
               }}/>
             ))}
           </div>
-          <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted }}>{step} / 8</span>
+          <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted }}>{step} / 10</span>
         </div>
 
         {!confirmSkip ? (
@@ -1918,9 +1941,82 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
             <h2 id={`tut-title-${step}`} style={{ margin:0, marginBottom:8, fontFamily:"'Geist', system-ui", fontSize:15.5, fontWeight:700, color:theme.text, letterSpacing:'-0.02em', lineHeight:1.25 }}>
               {current.title}
             </h2>
-            <p style={{ margin:0, marginBottom: current.hasMockListing ? 12 : 18, fontSize:13, color:theme.muted, lineHeight:1.6 }}>
+            <p style={{ margin:0, marginBottom: (current.hasMockListing || current.hasMockSets || current.hasMockDex || current.hasMockJP) ? 12 : 18, fontSize:13, color:theme.muted, lineHeight:1.6 }}>
               {current.text}
             </p>
+
+            {current.hasMockSets && (
+              <div style={{ marginBottom:16, borderRadius:14, border:`1px solid ${theme.borderS}`, overflow:'hidden' }}>
+                {[
+                  { name: 'Set de Base', code: 'base1', count: 7, value: '€ 463', era: '1999' },
+                  { name: 'Flammes Obsidiennes', code: 'sv3', count: 2, value: '€ 66', era: '2023' },
+                  { name: 'Épée et Bouclier', code: 'swsh1', count: 2, value: '€ 23', era: '2020' },
+                ].map((s, i, arr) => (
+                  <div key={s.code} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom: i < arr.length - 1 ? `1px solid ${theme.borderS}` : 'none', background: i === 0 ? `${accent}08` : 'transparent' }}>
+                    <div style={{ width:34, height:34, borderRadius:8, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <span style={{ fontSize:14 }}>{i === 0 ? '🃏' : i === 1 ? '🔥' : '⚔️'}</span>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:12.5, color:theme.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.name}</div>
+                      <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.faint, marginTop:1 }}>{s.count} cartes · {s.era}</div>
+                    </div>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontWeight:700, fontSize:13.5, color:theme.text, whiteSpace:'nowrap' }}>{s.value}</div>
+                    <span style={{ color:theme.faint, fontSize:13 }}>›</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {current.hasMockDex && (
+              <div style={{ marginBottom:16, borderRadius:14, border:`1px solid ${theme.borderS}`, overflow:'hidden', padding:'12px 14px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <div style={{ fontFamily:"'Geist', system-ui", fontSize:12, fontWeight:600, color:theme.text }}>Génération I</div>
+                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.muted }}>9 / 151</div>
+                </div>
+                <div style={{ height:3, borderRadius:99, background:theme.chipBg, marginBottom:10, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:'6%', background:accent, borderRadius:99 }}/>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:4 }}>
+                  {[
+                    { id:1, owned:true }, { id:3, owned:true }, { id:6, owned:true },
+                    { id:9, owned:true }, { id:25, owned:true }, { id:65, owned:true },
+                    { id:129, owned:true }, { id:150, owned:true }, { id:151, owned:true },
+                    { id:4, owned:false }, { id:7, owned:false }, { id:39, owned:false },
+                    { id:52, owned:false }, { id:54, owned:false },
+                  ].map(({ id, owned }) => (
+                    <div key={id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, opacity: owned ? 1 : 0.28 }}>
+                      <div style={{ width:36, height:36, borderRadius:7, background:theme.chipBg, display:'flex', alignItems:'center', justifyContent:'center', border: owned ? `1px solid ${accent}55` : '1px solid transparent', overflow:'hidden' }}>
+                        <img src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`} width={30} height={30}
+                          style={{ imageRendering:'pixelated', filter: owned ? 'none' : 'brightness(0)' }}
+                          onError={e => { e.target.style.opacity='0'; }}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, color:theme.faint, marginTop:8, textAlign:'right' }}>+ Gen II, III, IV… dans la Collection</div>
+              </div>
+            )}
+
+            {current.hasMockJP && (
+              <div style={{ marginBottom:16, borderRadius:14, border:`1px solid ${theme.borderS}`, overflow:'hidden' }}>
+                <div style={{ display:'flex', alignItems:'stretch', gap:0 }}>
+                  <img src="https://assets.tcgdex.net/en/base/base1/2/high.webp"
+                    style={{ width:72, objectFit:'cover', flexShrink:0 }}
+                    onError={e => { e.target.style.display='none'; }}/>
+                  <div style={{ padding:'12px 12px 10px', flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:6 }}>
+                      <span style={{ fontSize:16 }}>🇯🇵</span>
+                      <span style={{ fontFamily:"'Geist', system-ui", fontWeight:700, fontSize:15, color:theme.text }}>カメックス</span>
+                      <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:10.5, color:theme.faint }}>· 009</span>
+                    </div>
+                    <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:10, color:theme.faint, marginBottom:8 }}>JP · Set de Base · Rare Holo</div>
+                    <div style={{ padding:'5px 8px', borderRadius:8, background:'rgba(251,191,36,0.10)', border:'1px solid rgba(251,191,36,0.28)', fontSize:10.5, color:theme.muted, lineHeight:1.45 }}>
+                      ℹ️ Image & prix basés sur l'édition <b style={{ color:theme.text }}>🇺🇸 EN</b> équivalente
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {current.hasMockListing && (
               <div style={{ marginBottom:16, borderRadius:14, border:`1px solid ${theme.borderS}`, overflow:'hidden', fontSize:12 }}>
@@ -1932,16 +2028,16 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
                 </div>
                 <div style={{ padding:'12px 12px 10px' }}>
                   <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase', marginBottom:3 }}>Titre</div>
-                  <div style={{ fontWeight:600, color:theme.text, marginBottom:10, lineHeight:1.35, fontSize:12 }}>Dracaufeu 4/102 Set de Base FR — État Correct (6.5/10)</div>
+                  <div style={{ fontWeight:600, color:theme.text, marginBottom:10, lineHeight:1.35, fontSize:12 }}>Mewtwo 10/102 Set de Base FR 1ère Éd — Quasi Parfait (9.3/10)</div>
                   <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase', marginBottom:3 }}>Description</div>
-                  <div style={{ color:theme.muted, lineHeight:1.5, marginBottom:10, fontSize:11.5 }}>Vends Dracaufeu 4/102 Set de Base FR en très bon état général. Grade IA 6.5/10 — légères marques sur les bords, coins conservés. Carte authentique, expédition soignée en toploader...</div>
+                  <div style={{ color:theme.muted, lineHeight:1.5, marginBottom:10, fontSize:11.5 }}>Vends Mewtwo 10/102 Set de Base FR 1ère Édition en état quasi parfait. Grade IA 9.3/10 — centering 9.5, coins impeccables. Carte authentique, expédition soignée en toploader...</div>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:8, borderTop:`1px solid ${theme.borderS}` }}>
                     <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                      {['#Pokemon','#Dracaufeu','#TCG','#SetdeBase'].map(t => (
+                      {['#Pokemon','#Mewtwo','#TCG','#1ereEdition'].map(t => (
                         <span key={t} style={{ fontSize:10, padding:'2px 6px', borderRadius:5, background:theme.chipBg, fontFamily:"'Geist Mono', monospace", color:theme.muted }}>{t}</span>
                       ))}
                     </div>
-                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:17, fontWeight:700, color:theme.text, letterSpacing:'-0.025em', whiteSpace:'nowrap', marginLeft:8 }}>165 €</div>
+                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:17, fontWeight:700, color:theme.text, letterSpacing:'-0.025em', whiteSpace:'nowrap', marginLeft:8 }}>280 €</div>
                   </div>
                 </div>
               </div>
@@ -2857,7 +2953,7 @@ function App() {
   const completeTutorialAuth = () => exitTutorial(true);
   const skipTutorial         = () => enterSandboxMode();
   const exploreSandbox       = () => enterSandboxMode();
-  const nextTutorialStep     = () => setTutorialStep(s => Math.min(s + 1, 8));
+  const nextTutorialStep     = () => setTutorialStep(s => Math.min(s + 1, 10));
   const replayTutorial     = () => {
     localStorage.setItem('tutorial_completed', 'false');
     window.location.reload();
@@ -2871,7 +2967,7 @@ function App() {
     prevTutorialStep.current = tutorialStep;
     if (tutorialStep === 4) {
       setScreen('collection-item');
-      setArgs({ collectionItem: DEMO_COLLECTION[9] }); // Dracaufeu
+      setArgs({ collectionItem: DEMO_COLLECTION[0] }); // Dracaufeu (index 0)
     } else if (prev === 4) {
       setScreen('home');
       setArgs({});
