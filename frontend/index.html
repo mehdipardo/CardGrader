@@ -1264,12 +1264,18 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell, openSh
       <div style={{ padding:'14px 16px 0' }}>
         <SectionHead theme={theme} title="Estimation prix" action="CardMarket"/>
         <div style={{ marginTop:10, padding:16, borderRadius:16, background:theme.surface, border:`1px solid ${theme.borderS}` }}>
+          {!isLangSpecific && (
+            <div style={{ marginBottom:12, padding:'8px 10px', borderRadius:8, background:`${GRADE.mid}18`, color:GRADE.mid, fontSize:11.2, lineHeight:1.4, display:'flex', gap:8 }}>
+              <Icon.info size={13} color={GRADE.mid}/>
+              <span>Prix CardMarket <b>toutes langues confondues</b> — la valeur en {id.language} peut différer significativement.</span>
+            </div>
+          )}
           <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
             <span style={{ fontFamily:"'Geist', system-ui", fontSize:32, fontWeight:600, letterSpacing:'-0.03em', color:theme.text }}>
               € {Math.round(estLow)}–{Math.round(estHigh)}
             </span>
           </div>
-          <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Fourchette selon état évalué</div>
+          <div style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>Estimation selon état · fourchette d'incertitude</div>
           <div style={{ height:1, background:theme.borderS, margin:'12px 0' }}/>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
             <span style={{ fontSize:12.5, color:theme.muted }}>Référence Near Mint</span>
@@ -1278,17 +1284,18 @@ function ScanReport({ theme, accent, report, back, goTo, onAdd, openSell, openSh
             </span>
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginTop:8 }}>
+            <span style={{ fontSize:12.5, color:theme.muted }}>Score état → décote appliquée</span>
+            <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:13, color:theme.text, fontWeight:500 }}>
+              {score.toFixed(1)}/10 →{' '}
+              {priceNM > 0 ? `× ${((val.estimated_value || 0) / priceNM).toFixed(2)}` : '—'}
+            </span>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginTop:8 }}>
             <span style={{ fontSize:12.5, color:theme.muted }}>Confiance globale</span>
             <span style={{ fontFamily:"'Geist Mono', monospace", fontSize:13, color:theme.text, fontWeight:500 }}>
               {conf}%
             </span>
           </div>
-          {!isLangSpecific && (
-            <div style={{ marginTop:12, padding:'8px 10px', borderRadius:8, background:`${GRADE.mid}14`, color:GRADE.mid, fontSize:11.2, lineHeight:1.4, display:'flex', gap:8 }}>
-              <Icon.info size={13} color={GRADE.mid}/>
-              <span>Prix de référence non spécifique à la langue {id.language}. Variation possible.</span>
-            </div>
-          )}
         </div>
       </div>
 

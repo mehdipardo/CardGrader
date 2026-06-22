@@ -13,15 +13,17 @@ SCORE_TO_GRADE_TIER: dict[tuple[float, float], int] = {
     (0.0, 3.0):  1,
 }
 
-# Multipliers applied to raw_price when a graded price is not available.
-# Reflects typical market premium/discount vs. raw for each PSA tier.
+# Multipliers applied to raw NM price for each condition tier (raw/ungraded cards).
+# These are CardMarket condition discounts vs Near Mint — NOT PSA grading premiums.
+# PSA premium multipliers (6×, 2.8×…) only apply when graded sale data is available
+# from RapidAPI; those come through the grade_10/grade_9/… fields instead.
 GRADE_MULTIPLIERS: dict[int, float] = {
-    10: 6.0,
-    9:  2.8,
-    7:  1.6,
-    5:  1.1,
-    3:  0.75,
-    1:  0.35,
+    10: 1.00,   # M  — mint / pack-fresh
+    9:  0.85,   # NM — near mint, barely played
+    7:  0.65,   # EX — light play, minor surface marks
+    5:  0.45,   # GD — moderate play, visible wear
+    3:  0.25,   # LP — heavy play, significant damage
+    1:  0.10,   # PL/PO — poor or damaged
 }
 
 TIER_TO_FIELD: dict[int, str] = {
