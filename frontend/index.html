@@ -942,7 +942,7 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
         const { match_id } = await apiFetch('/api/auto_match', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ candidates: cands, number: numToUse, lang: searchLangRef.current, set_name: identity?.set_name || null, set_code: identity?.set_code || null }),
+          body: JSON.stringify({ candidates: cands, number: numToUse, lang: searchLangRef.current, set_name: identity?.set_name || null, set_code: identity?.set_code || null, original_lang: (identity?.language || '').toLowerCase() || null }),
         });
         // AI suggestion first, rest in original order
         const sorted = match_id

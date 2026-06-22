@@ -353,6 +353,7 @@ class AutoMatchRequest(BaseModel):
     lang:      str = "fr"
     set_name:  Optional[str] = None
     set_code:  Optional[str] = None
+    original_lang: Optional[str] = None  # scan language, may differ from search lang
 
 
 def _set_name_score(vision_set: str, card_set_name: str, card_set_id: str) -> int:
@@ -392,8 +393,12 @@ async def auto_match(body: AutoMatchRequest):
     # and the EN localId is completely different (JP 009 = EN 2 for Base Blastoise).
     # When no local match is found and the number looks like a vintage JP number,
     # fall back to set-name scoring across all candidates.
+    # Use original_lang (the scan language) rather than lang (the TCGdex search lang),
+    # because the search may switch to "en" when falling back to EN card data, which
+    # would otherwise hide the JP vintage scoring path.
+    detect_lang = (body.original_lang or lang or "").lower()
     jp_old_number = (
-        lang == "ja"
+        detect_lang == "ja"
         and "/" not in number
         and number.lstrip("0").isdigit()
     )
