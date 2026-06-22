@@ -336,6 +336,13 @@ const DEMO_COLLECTION = [
   },
 ];
 
+const DEMO_LISTING = {
+  title: 'Dracaufeu 4/102 Set de Base FR — Bon État (6.5/10)',
+  description: 'Vends Dracaufeu 4/102 Set de Base FR. Grade PokéGrader 6.5/10 — centering 7.0, coins 6.0, bords légèrement usés (6.5), surface propre (7.0).\n\nCarte authentique, couleurs vives, holo bien conservée. Expédition soignée en toploader rigide + enveloppe matelassée sous 48h. 🔥 Pièce iconique de toute collection vintage FR.',
+  suggested_price: 95,
+  tags: ['#Pokemon', '#Dracaufeu', '#SetDeBase', '#Vintage', '#TCGFrance', '#PokemonTCG'],
+};
+
 /* ── Logo ─────────────────────────────────────────────────────────────── */
 function Logo({ color = 'currentColor', size = 22 }) {
   return (
@@ -1537,7 +1544,7 @@ function Collection({ theme, accent, collection, goTo, openSell, onRemove, tutor
 }
 
 /* ── SellSheet ────────────────────────────────────────────────────────── */
-function SellSheet({ theme, accent, item, onClose }) {
+function SellSheet({ theme, accent, item, onClose, demoListing }) {
   const report  = item?.report || null;
   const id      = report?.identity || {};
   const val     = report?.valuation || {};
@@ -1573,7 +1580,17 @@ function SellSheet({ theme, accent, item, onClose }) {
     }
   }, [report, id.language, val.estimated_value]);
 
-  React.useEffect(() => { fetchListing(platform); }, [platform]);
+  React.useEffect(() => {
+    if (demoListing) {
+      setListing(demoListing);
+      setTitle(demoListing.title || '');
+      setBody(demoListing.description || '');
+      setPrice(String(Math.round(demoListing.suggested_price || 0)));
+      setTags(demoListing.tags || []);
+    } else {
+      fetchListing(platform);
+    }
+  }, [platform, demoListing]);
 
   const handleCopy = () => {
     const text = `${title}\n\n${body}${tags.length ? `\n\n${tags.join(' ')}` : ''}`;
@@ -1588,7 +1605,7 @@ function SellSheet({ theme, accent, item, onClose }) {
   };
 
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:80, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={onClose}>
+    <div style={{ position:'fixed', inset:0, zIndex:80, display:'flex', flexDirection:'column', justifyContent:'flex-end', background:theme.overlay, animation:'pgFade .2s ease' }} onClick={demoListing ? undefined : onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background:theme.bg, borderTopLeftRadius:28, borderTopRightRadius:28, maxHeight:'90dvh', display:'flex', flexDirection:'column', boxShadow:theme.elev3, animation:'pgRise .28s cubic-bezier(.2,.7,.2,1)' }}>
         {/* handle */}
         <div style={{ display:'flex', justifyContent:'center', padding:'8px 0 4px' }}>
@@ -1831,7 +1848,7 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
     { title: 'Browse par set', text: 'Toutes tes cartes regroupées par édition avec valeur totale par set — idéal pour suivre une collection thématique.', target: 'collection-tabs', isPageSets: true },
     { title: 'Pokédex de ta collection', text: 'Visualise quels Pokémon tu possèdes, génération par génération. Parfait pour tracker ta complétion.', target: 'collection-tabs', isPageDex: true },
     { title: 'Cartes multilingues & JP vintage', text: 'FR, EN, JP, DE, ES… la langue est détectée automatiquement. Pour les sets JP vintage introuvables, l\'équivalent EN est utilisé avec une note.', target: null, hasMockJP: true },
-    { title: 'Vends en un clic', text: 'L\'IA rédige une annonce adaptée à Vinted, eBay ou CardMarket — titre, description, prix et hashtags en 10 secondes.', target: 'sell-cta-btn' },
+    { title: 'Vends en un clic', text: 'L\'IA rédige l\'annonce en 10 secondes — titre optimisé, description, prix CardMarket et hashtags pour Vinted, eBay ou CardMarket.', target: null, isPageSell: true },
     { title: 'Flex ta collection 🔥', text: 'Un tap pour générer une fiche de partage — fond cosmique, grade et prix inclus. Prêt à commencer ?', target: null, isFinal: true, hasMockShare: true },
   ];
 
@@ -1873,7 +1890,11 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
   const bubbleW = Math.min(320, window.innerWidth - 32);
   let bubbleStyle = {};
   const isPageStep = current.isPageSets || current.isPageDex;
-  if (isPageStep) {
+  const isPageSell = current.isPageSell;
+  if (isPageSell) {
+    // Bubble at top so SellSheet is fully visible below
+    bubbleStyle = { position: 'fixed', top: 56, left: '50%', transform: 'translateX(-50%)', width: bubbleW };
+  } else if (isPageStep) {
     // Pin bubble above bottom nav so tab spotlight AND page content are both visible
     bubbleStyle = { position: 'fixed', bottom: 104, left: '50%', transform: 'translateX(-50%)', width: bubbleW };
   } else if (spotRect) {
@@ -1895,7 +1916,7 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
     <>
       {/* Four panels framing the spotlight (or single full overlay for modal) */}
       {isModal || !spotRect ? (
-        <div style={{ position:'fixed', inset:0, zIndex:990, background:'rgba(0,0,0,0.72)', animation:'pgFade .25s ease' }}/>
+        <div style={{ position:'fixed', inset:0, zIndex:990, background: isPageSell ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.72)', animation:'pgFade .25s ease' }}/>
       ) : (
         <>
           <div style={{ position:'fixed', top:0, left:0, width:'100%', height: spotT, zIndex:990, background: isPageStep ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)' }}/>
@@ -1946,7 +1967,7 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
             <h2 id={`tut-title-${step}`} style={{ margin:0, marginBottom:8, fontFamily:"'Geist', system-ui", fontSize:15.5, fontWeight:700, color:theme.text, letterSpacing:'-0.02em', lineHeight:1.25 }}>
               {current.title}
             </h2>
-            <p style={{ margin:0, marginBottom: (current.hasMockListing || current.hasMockJP || current.hasMockShare) ? 12 : 18, fontSize:13, color:theme.muted, lineHeight:1.6 }}>
+            <p style={{ margin:0, marginBottom: (current.hasMockJP || current.hasMockShare) ? 12 : 18, fontSize:13, color:theme.muted, lineHeight:1.6 }}>
               {current.text}
             </p>
 
@@ -2014,31 +2035,6 @@ function TutorialOverlay({ step, theme, accent, onNext, onSkip, onComplete, open
                 {/* Share chip top-left */}
                 <div style={{ position:'absolute', top:8, left:8, background:'rgba(124,58,237,0.72)', borderRadius:8, padding:'3px 9px', border:'1px solid rgba(167,139,250,0.40)', display:'flex', alignItems:'center', gap:4 }}>
                   <span style={{ fontFamily:"'Geist',system-ui", fontSize:9, fontWeight:700, color:'#fff', letterSpacing:'0.04em' }}>✦ PARTAGER</span>
-                </div>
-              </div>
-            )}
-
-            {current.hasMockListing && (
-              <div style={{ marginBottom:16, borderRadius:14, border:`1px solid ${theme.borderS}`, overflow:'hidden', fontSize:12 }}>
-                {/* Platform tabs */}
-                <div style={{ background:theme.chipBg, padding:'8px 12px', borderBottom:`1px solid ${theme.borderS}`, display:'flex', gap:5 }}>
-                  {[{l:'Vinted', c:'#09b1ba'}, {l:'eBay', c:'#e53238'}, {l:'CardMarket', c:'#012169'}].map((p,i) => (
-                    <span key={p.l} style={{ fontSize:10.5, fontWeight:600, padding:'2px 8px', borderRadius:99, background: i===0 ? p.c : theme.surface, color: i===0 ? '#fff' : theme.muted, fontFamily:"'Geist Mono', monospace", border: i!==0 ? `1px solid ${theme.borderS}` : 'none' }}>{p.l}</span>
-                  ))}
-                </div>
-                <div style={{ padding:'12px 12px 10px' }}>
-                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase', marginBottom:3 }}>Titre</div>
-                  <div style={{ fontWeight:600, color:theme.text, marginBottom:10, lineHeight:1.35, fontSize:12 }}>Mewtwo 10/102 Set de Base FR 1ère Éd — Quasi Parfait (9.3/10)</div>
-                  <div style={{ fontFamily:"'Geist Mono', monospace", fontSize:9.5, letterSpacing:'0.1em', color:theme.faint, textTransform:'uppercase', marginBottom:3 }}>Description</div>
-                  <div style={{ color:theme.muted, lineHeight:1.5, marginBottom:10, fontSize:11.5 }}>Vends Mewtwo 10/102 Set de Base FR 1ère Édition en état quasi parfait. Grade IA 9.3/10 — centering 9.5, coins impeccables. Carte authentique, expédition soignée en toploader...</div>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:8, borderTop:`1px solid ${theme.borderS}` }}>
-                    <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                      {['#Pokemon','#Mewtwo','#TCG','#1ereEdition'].map(t => (
-                        <span key={t} style={{ fontSize:10, padding:'2px 6px', borderRadius:5, background:theme.chipBg, fontFamily:"'Geist Mono', monospace", color:theme.muted }}>{t}</span>
-                      ))}
-                    </div>
-                    <div style={{ fontFamily:"'Geist', system-ui", fontSize:17, fontWeight:700, color:theme.text, letterSpacing:'-0.025em', whiteSpace:'nowrap', marginLeft:8 }}>280 €</div>
-                  </div>
                 </div>
               </div>
             )}
@@ -2974,9 +2970,17 @@ function App() {
     } else if (tutorialStep === 7) {
       setScreen('dex');
       setArgs({});
-    } else if (prev === 4 || prev === 6 || prev === 7) {
+    } else if (tutorialStep === 9) {
       setScreen('home');
       setArgs({});
+      setSellItem(DEMO_COLLECTION[0]);
+      setSellOpen(true);
+    } else {
+      if (prev === 9) setSellOpen(false);
+      if (prev === 4 || prev === 6 || prev === 7) {
+        setScreen('home');
+        setArgs({});
+      }
     }
   }, [tutorialStep, tutorialActive]);
 
@@ -3157,7 +3161,7 @@ function App() {
         {content}
       </div>
       <BottomTabs tab={tab} setTab={setTab} theme={theme} accent={accent}/>
-      {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell}/>}
+      {sellOpen     && <SellSheet    theme={theme} accent={accent} item={sellItem} onClose={closeSell} demoListing={sellItem?.id === 'sandbox-1' ? DEMO_LISTING : null}/>}
       {settingsOpen && <SettingsSheet theme={theme} accent={accent} dark={dark} onDark={setDark} onClose={() => setSettingsOpen(false)} onReplayTutorial={replayTutorial}/>}
       {authOpen     && <AuthSheet    theme={theme} accent={accent} onClose={() => setAuthOpen(false)} onAuth={handleAuth}/>}
       {shareOpen    && <ShareModal   theme={theme} report={shareItem} onClose={() => { setShareOpen(false); setShareItem(null); }}/>}
