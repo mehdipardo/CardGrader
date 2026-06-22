@@ -128,8 +128,8 @@ class _SupabaseClient:
 
 def supabase_client() -> _SupabaseClient:
     """PostgREST client over HTTP/1.1 — contourne les problèmes HTTP/2 serverless."""
-    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
     if not url or not key:
         raise HTTPException(
             503,
