@@ -2656,13 +2656,72 @@ function TutorialExitOverlay({ theme }) {
   );
 }
 
+/* ── CollectionHub ────────────────────────────────────────────────────── */
+function CollectionHub({ theme, accent, collection, goTo, openSell, onRemove, tutorialActive, screen, screenArgs, back, openShare }) {
+  const subTab = (screen === 'sets' || screen === 'set-detail') ? 'sets'
+    : screen === 'dex' ? 'dex'
+    : 'cartes';
+  const showControl = screen !== 'set-detail' && screen !== 'collection-item';
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+      {showControl && (
+        <div style={{ padding:'10px 16px 0', flexShrink:0 }}>
+          <div style={{ display:'flex', gap:4, padding:4, background:theme.surface, borderRadius:14, border:`1px solid ${theme.borderS}`, boxShadow:theme.elev1 }}>
+            {[
+              { k:'cartes', l:'Cartes',  icon:'stack' },
+              { k:'sets',   l:'Sets',    icon:'layers' },
+              { k:'dex',    l:'Pokédex', icon:'dex' },
+            ].map(({ k, l, icon }) => {
+              const on = subTab === k;
+              return (
+                <button key={k} onClick={() => {
+                  if (k === 'cartes') goTo('collection');
+                  else if (k === 'sets') goTo('sets');
+                  else goTo('dex');
+                }} style={{
+                  flex:1, height:34, borderRadius:10, border:'none', cursor:'pointer',
+                  background: on ? theme.bg : 'transparent',
+                  color: on ? theme.text : theme.faint,
+                  fontFamily:"'Geist', system-ui", fontSize:12.5, fontWeight: on ? 600 : 500,
+                  display:'flex', alignItems:'center', justifyContent:'center', gap:5,
+                  boxShadow: on ? theme.elev1 : 'none',
+                  transition:'background .12s, color .12s',
+                }}>
+                  {React.createElement(Icon[icon], { size:13, color: on ? theme.text : theme.faint })}
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div style={{ flex:1, overflow:'hidden', minHeight:0 }}>
+        {screen === 'collection' && (
+          <Collection theme={theme} accent={accent} collection={collection} goTo={goTo} openSell={openSell} onRemove={onRemove} tutorialActive={tutorialActive}/>
+        )}
+        {screen === 'sets' && (
+          <SetsPage theme={theme} accent={accent} collection={collection} goTo={goTo}/>
+        )}
+        {screen === 'set-detail' && (
+          <SetDetailPage theme={theme} accent={accent} collection={collection} setName={screenArgs.setName} setCode={screenArgs.setCode} goTo={goTo} back={back}/>
+        )}
+        {screen === 'dex' && (
+          <PokedexPage theme={theme} accent={accent} collection={collection} goTo={goTo}/>
+        )}
+        {screen === 'collection-item' && (
+          <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell} openShare={openShare}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── BottomTabs ───────────────────────────────────────────────────────── */
 function BottomTabs({ tab, setTab, theme, accent }) {
   const items = [
     { k:'home',       l:'Accueil',    icon:'home' },
-    { k:'sets',       l:'Sets',       icon:'layers' },
     { k:'scan',       l:'Scanner',    icon:'scan', center:true },
-    { k:'dex',        l:'Pokédex',    icon:'dex' },
     { k:'collection', l:'Collection', icon:'stack' },
   ];
   return (
@@ -2807,15 +2866,12 @@ function App() {
   const closeSell = () => setSellOpen(false);
 
   const tab = screen === 'home' ? 'home'
-    : screen === 'collection' || screen === 'collection-item' ? 'collection'
-    : screen === 'sets' || screen === 'set-detail' ? 'sets'
-    : screen === 'dex' ? 'dex'
+    : (screen === 'collection' || screen === 'collection-item' ||
+       screen === 'sets' || screen === 'set-detail' || screen === 'dex') ? 'collection'
     : 'scan';
   const setTab = k => {
     if (k === 'home')            goTo('home');
     else if (k === 'collection') goTo('collection');
-    else if (k === 'sets')       goTo('sets');
-    else if (k === 'dex')        goTo('dex');
     else                         goTo('scan-upload', { mode:'upload' });
   };
 
@@ -2824,7 +2880,7 @@ function App() {
     else if (screen === 'scan-report')     goTo('home');
     else if (screen === 'collection-item') goTo('collection');
     else if (screen === 'set-detail')      goTo('sets');
-    else goTo('home');
+    else                                   goTo('home');
   };
 
   const handleAnalyze = ({ identity, frontFile, backFile }) => {
@@ -2932,16 +2988,14 @@ function App() {
     const _srReport = screenArgs.collectionItem?.report || scanState.report;
     const _srOnAdd  = screenArgs.collectionItem ? () => {} : handleAddToCollection;
     content = <ScanReport theme={theme} accent={accent} report={_srReport} back={back} goTo={goTo} onAdd={_srOnAdd} openSell={openSell} openShare={r => { setShareItem(r); setShareOpen(true); }}/>;
-  } else if (screen === 'collection') {
-    content = <Collection theme={theme} accent={accent} collection={activeCollection} goTo={goTo} openSell={openSell} onRemove={handleRemove} tutorialActive={demoMode}/>;
-  } else if (screen === 'collection-item') {
-    content = <ScanReport theme={theme} accent={accent} report={screenArgs.collectionItem?.report} back={back} goTo={goTo} onAdd={() => {}} openSell={openSell} openShare={r => { setShareItem(r); setShareOpen(true); }}/>;
-  } else if (screen === 'sets') {
-    content = <SetsPage theme={theme} accent={accent} collection={activeCollection} goTo={goTo}/>;
-  } else if (screen === 'set-detail') {
-    content = <SetDetailPage theme={theme} accent={accent} collection={activeCollection} setName={screenArgs.setName} setCode={screenArgs.setCode} goTo={goTo} back={back}/>;
-  } else if (screen === 'dex') {
-    content = <PokedexPage theme={theme} accent={accent} collection={activeCollection} goTo={goTo}/>;
+  } else if (screen === 'collection' || screen === 'collection-item' ||
+             screen === 'sets' || screen === 'set-detail' || screen === 'dex') {
+    content = <CollectionHub
+      theme={theme} accent={accent} collection={activeCollection}
+      goTo={goTo} openSell={openSell} onRemove={handleRemove} tutorialActive={demoMode}
+      screen={screen} screenArgs={screenArgs} back={back}
+      openShare={r => { setShareItem(r); setShareOpen(true); }}
+    />;
   }
 
   return (
