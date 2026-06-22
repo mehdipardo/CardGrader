@@ -6,6 +6,6 @@ streamlit
 fastapi
 uvicorn[standard]
 python-multipart
-supabase
+supabase>=1.0.3,<2.0.0
 passlib[bcrypt]
 PyJWT
