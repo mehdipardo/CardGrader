@@ -293,6 +293,9 @@ async def search_cards(body: SearchRequest):
                             pass
 
                     if not ja_found:
+                        # TCGdex doesn't have the original 1996 JP sets.
+                        # Mark EN stub so frontend can explain the situation to user.
+                        en_card["_jp_en_fallback"] = True
                         ja_from_en.append(en_card)
 
                 candidates = candidates + ja_from_en

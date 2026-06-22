@@ -1085,10 +1085,21 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
 
       {!loading && candidates.length > 0 && (
         <>
+          {/* JP vintage notice: TCGdex doesn't carry original 1996 JP sets */}
+          {identity?.language === 'JP' && candidates.some(c => c._jp_en_fallback) && (
+            <div style={{ margin:'12px 16px 0', padding:'10px 12px', borderRadius:12, background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.25)', display:'flex', gap:8, alignItems:'flex-start' }}>
+              <span style={{ fontSize:15, flexShrink:0 }}>🇯🇵</span>
+              <div style={{ fontSize:11.5, color:theme.muted, lineHeight:1.5 }}>
+                <b style={{ color:theme.text }}>Sets japonais vintage non disponibles dans TCGdex.</b>
+                {' '}Les versions anglaises équivalentes sont affichées — même carte, même illustration. Sélectionnez la bonne version pour continuer.
+              </div>
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'14px 16px 0' }}>
             {candidates.slice(0, visibleCount).map(c => {
               const on = selected === c.id;
               const isAi = c.id === autoId;
+              const isEnFallback = !!c._jp_en_fallback;
               return (
                 <button key={c.id} onClick={() => setSelected(c.id)} style={{
                   textAlign:'left', cursor:'pointer', position:'relative',
@@ -1099,6 +1110,11 @@ function ScanMatch({ theme, accent, identity, frontFile, backFile, back, onConfi
                   {isAi && (
                     <div style={{ position:'absolute', top:-7, left:10, padding:'2px 8px', borderRadius:99, background:accent, color:'#fff', fontFamily:"'Geist Mono', monospace", fontSize:9.5, fontWeight:600, letterSpacing:'0.08em', display:'flex', alignItems:'center', gap:4, zIndex:2 }}>
                       <Icon.spark size={10} color="#fff"/> SUGGESTION IA
+                    </div>
+                  )}
+                  {isEnFallback && !isAi && (
+                    <div style={{ position:'absolute', top:-7, left:10, padding:'2px 7px', borderRadius:99, background:'rgba(251,191,36,0.15)', border:'1px solid rgba(251,191,36,0.4)', color:'#d97706', fontFamily:"'Geist Mono', monospace", fontSize:9, fontWeight:600, zIndex:2 }}>
+                      EN
                     </div>
                   )}
                   <CardImg imageUrl={c.image} card={{ type:'water', monogram:(c.name||'?')[0] }} w={156} radius={0.04}/>
