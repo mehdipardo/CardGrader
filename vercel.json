@@ -6,6 +6,7 @@
   ],
   "routes": [
     { "src": "/api/(.*)",  "dest": "/api/index.py" },
+    { "src": "/(.*\\.(?:png|jpg|jpeg|svg|ico|webp|gif|woff2|woff|ttf))", "dest": "/frontend/$1" },
     { "src": "/(.*)",      "dest": "/frontend/index.html" }
   ],
   "headers": [
