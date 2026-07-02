@@ -6,6 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="theme-color" content="#1a1b20"/>
   <title>PokéGrader</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
@@ -353,6 +354,33 @@ const DEMO_COLLECTION = [
       valuation: { estimated_value: 220, value_range_low: 170, value_range_high: 280, confidence_score: 0.95 },
     },
   },
+  {
+    id: 'sandbox-14', is_sandbox: true, addedAt: '19 juin',
+    report: {
+      identity: { name: 'Lugia', number: '9/111', language: 'FR', set_name: 'Néo Genèse', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/neo/neo1/9' },
+      condition: { overall_score: 10.0, centering: 10.0, corners: 10.0, edges: 10.0, surface: 10.0, confidence: 0.99 },
+      pricing: { raw_price: 3500, language_specific: true },
+      valuation: { estimated_value: 2200, value_range_low: 1800, value_range_high: 2800, confidence_score: 0.99 },
+    },
+  },
+  {
+    id: 'sandbox-15', is_sandbox: true, addedAt: '18 juin',
+    report: {
+      identity: { name: 'Ho-Oh', number: '7/111', language: 'FR', set_name: 'Néo Genèse', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/neo/neo1/7' },
+      condition: { overall_score: 10.0, centering: 10.0, corners: 10.0, edges: 10.0, surface: 10.0, confidence: 0.99 },
+      pricing: { raw_price: 2500, language_specific: true },
+      valuation: { estimated_value: 1800, value_range_low: 1400, value_range_high: 2200, confidence_score: 0.99 },
+    },
+  },
+  {
+    id: 'sandbox-16', is_sandbox: true, addedAt: '17 juin',
+    report: {
+      identity: { name: 'Tortank 1ère Éd.', number: '2/102', language: 'FR', set_name: 'Set de Base — 1ère Édition', rarity: 'Rare Holo', image: 'https://assets.tcgdex.net/fr/base/base1/2' },
+      condition: { overall_score: 10.0, centering: 10.0, corners: 10.0, edges: 10.0, surface: 10.0, confidence: 0.99 },
+      pricing: { raw_price: 4500, language_specific: true },
+      valuation: { estimated_value: 2500, value_range_low: 2000, value_range_high: 3200, confidence_score: 0.99 },
+    },
+  },
 ];
 
 const DEMO_LISTING = {
@@ -552,9 +580,7 @@ function TopBar({ theme, accent, onSettings, authUser, tutorialActive }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px 12px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <div style={{ width:32, height:32, borderRadius:9, background:theme.text, color:theme.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <Logo size={18} color={theme.bg}/>
-        </div>
+        <img src="/logo.svg" width={32} height={32} style={{ borderRadius:9, display:'block' }} alt="PokéGrader"/>
         <div style={{ lineHeight:1.1 }}>
           <div style={{ fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:17, letterSpacing:'-0.02em', color:theme.text, display:'flex', alignItems:'center', gap:7 }}>
             PokéGrader
