@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="theme-color" content="#1a1b20"/>
   <title>PokéGrader</title>
-  <link rel="icon" href="/logo.svg" type="image/svg+xml"/>
+  <link rel="icon" href="/logopokegrader.png" type="image/png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
@@ -580,7 +580,7 @@ function TopBar({ theme, accent, onSettings, authUser, tutorialActive }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px 12px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <img src="/logo.svg" width={32} height={32} style={{ borderRadius:9, display:'block' }} alt="PokéGrader"/>
+        <img src="/logopokegrader.png" width={32} height={32} style={{ borderRadius:9, display:'block', objectFit:'contain' }} alt="PokéGrader"/>
         <div style={{ lineHeight:1.1 }}>
           <div style={{ fontFamily:"'Geist', system-ui", fontWeight:600, fontSize:17, letterSpacing:'-0.02em', color:theme.text, display:'flex', alignItems:'center', gap:7 }}>
             PokéGrader
